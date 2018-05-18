@@ -4,6 +4,7 @@
 
   let keyword_tabel =
     [("int", IntKeyword);
+     ("char", CharKeyword);
      ("return", ReturnKeyword)]
 
   let find_token s =
@@ -12,12 +13,22 @@
 }
 
 rule token = parse
-  | [' ' '\t'] { token lexbuf }
+  | [' ' '\t' '\n'] { token lexbuf }
   | '{' { BraceOpen }
   | '}' { BraceClose }
   | '(' { ParenOpen }
   | ')' { ParenClose }
-  | ';' { Comma }
+  | ',' { Comma }
+  | '?' { Question }
+  | ';' { Semicolon }
+  | ':' { Colon }
+  | '!' { Bang }
+  | '~' { Complement }
+  | '+' { Plus }
+  | '-' { Minus }
+  | '*' { Mult }
+  | '/' { Div }
+  | '%' { Mod }
   | ['0'-'9']+ as lxm { Int (int_of_string lxm) }
   | ['A'-'Z' 'a'-'z'] ['A'-'Z' 'a'-'z' '0'-'9' '_'] * as id
     { find_token id }
