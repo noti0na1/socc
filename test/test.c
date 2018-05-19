@@ -1,7 +1,3 @@
-int test() {
-    return -2 % 3;
-}
-
 int main() {
-    return -2 * 3 - 6 / (3 + 2);
+    return 7 - 3;
 }

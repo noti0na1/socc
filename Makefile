@@ -26,4 +26,5 @@ sanity:
 	which menhir
 
 test: native
-	./main.native < test/neg.c > test/neg.s
+	./main.native < test/test.c > test/test.s
+	clang test/test.s -o test/test
