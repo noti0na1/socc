@@ -1,19 +1,22 @@
 open Core
 open Ast
 
+let nacmd c () =
+  "\t" ^ c ^ "\n" |> print_string
+
 let slcmd c a =
   "\t" ^ c ^ "\t" ^ a ^ "\n" |> print_string
 
 let bicmd c a b =
   "\t" ^ c ^ "\t" ^ a ^ ", " ^ b ^ "\n" |> print_string
 
-let global_fun f =
+let global f =
   "\t.global " ^ f ^ "\n" |> print_string
 
-let start_fun f =
+let label f =
   f ^ ":\n" |> print_string
 
-let movl s d = bicmd "movl" s d
+let movl = bicmd "movl"
 
 let push = slcmd "push"
 
@@ -37,12 +40,20 @@ let neg = slcmd "neg"
 
 let nnot = slcmd "nnot"
 
-let ret () = "\tret\n" |> print_string
+let jz = slcmd "jz"
+
+let je = slcmd "je"
+
+let jmp = slcmd "jmp"
+
+let nop = nacmd "nop"
+
+let ret = nacmd "ret"
 
 let gen_const c =
   match c with
-  | Int i -> movl ("$"^ string_of_int i) "%eax"
-  | Char c -> movl ("$"^ string_of_int (Char.to_int c)) "%eax"
+  | Int i -> movl ("$" ^ string_of_int i) "%eax"
+  | Char c -> movl ("$" ^ string_of_int (Char.to_int c)) "%eax"
   | String s -> print_string s
 
 let gen_unop uop =
@@ -85,8 +96,7 @@ let gen_statement s =
 let gen_fun f =
   match f with
   | Fun (id, bdy) ->
-    global_fun id;
-    start_fun id;
+    global id; label id;
     gen_statement bdy
 
 let rec gen_prog p =
@@ -94,5 +104,5 @@ let rec gen_prog p =
   | Prog [] -> ();
   | Prog (f :: fs) ->
     gen_fun f;
-    print_newline ();
+    Out_channel.newline stdout;
     gen_prog (Prog fs)
