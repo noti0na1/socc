@@ -1,8 +1,0 @@
-#use "topfind"
-#thread
-#warnings "+43+6"
-#require "ppx_jane,core.top"
-#require "core.syntax"
-#require "core_extended"
-#require "async"
-open Core

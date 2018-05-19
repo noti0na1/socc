@@ -1,7 +1,8 @@
 .PHONY: all clean byte native profile debug sanity test
 
 OCB_FLAGS = -use-ocamlfind -use-menhir -I src # uses menhir
-OCB = ocamlbuild $(OCB_FLAGS)
+# OCB = ocamlbuild $(OCB_FLAGS)
+OCB = corebuild $(OCB_FLAGS)
 
 all: native byte # profile debug
 
@@ -25,4 +26,4 @@ sanity:
 	which menhir
 
 test: native
-	./main.native "2 + 3 * 3"
+	./main.native < test/neg.c > test/neg.s

@@ -1,2 +1,2 @@
-true: package(core,ppx_jane)
+true: package()
 true: thread,debug

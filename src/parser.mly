@@ -21,15 +21,17 @@
 
 %type <Ast.prog> prog
 %type <fun_decl> fun_decl
-%type <unop> unary_op
+%type <statement> statement
+%type <exp> exp
 
 %start prog
 
 %%
 
 prog:
-  fun_decl EOF
-  { Prog [$1] }
+    f = fun_decl p = prog
+    { let Prog fs = p in Prog (f :: fs) }
+  | EOF { Prog [] }
 ;
 
 fun_decl:
@@ -44,12 +46,14 @@ statement:
 
 exp:
     i = Int { Const (Int i) }
-  | uop = unary_op e = exp { UnOp (uop, e) }
-;
-
-unary_op:
-    Minus %prec NMinus { Negate }
-  | Complement { Complement }
-  | Bang { Not }
+  | ParenOpen e = exp ParenClose { e }
+  | e1 = exp Plus e2 = exp { BinOp (Add, e1, e2) }
+  | e1 = exp Minus e2 = exp { BinOp (Sub, e1, e2) }
+  | e1 = exp Mult e2 = exp { BinOp (Mult, e1, e2) }
+  | e1 = exp Div e2 = exp { BinOp (Div, e1, e2) }
+  | e1 = exp Mod e2 = exp { BinOp (Mod, e1, e2) }
+  | Complement e = exp { UnOp (Complement, e) }
+  | Bang e = exp { UnOp (Not, e) }
+  | Minus e = exp %prec NMinus { UnOp (Negate, e) }
 ;
 %%
