@@ -3,58 +3,72 @@
   open Ast
 %}
 
-%token <int> Int
-%token <char> Char
-%token <string> Id
-%token BraceOpen BraceClose ParenOpen ParenClose
-%token Comma Question Semicolon Colon
-%token IntKeyword CharKeyword ReturnKeyword
-%token IfKeyword ElseKeyword ForKeyword DoKeyword WhileKeyword BreakKeyword ContinueKeyword
-%token Bang Complement
-%token NMinus Plus Minus Mult Div Mod
-%token Eq DoubleEq Neq Lt Le Gt Ge And Or
-%token BitAnd BitOr Xor ShiftLeft ShiftRight
+%token <int> INT
+%token <char> CHAR
+%token <string> ID
+%token BRACE_OPEN BRACE_CLOSE PAREN_OPEN PAREN_CLOSE
+%token COMMA QUESTION SEMICOLON COLON
+%token INT_KW CHAR_KW RETURN_KW
+%token IF_KW ELSE_KW FOR_KW DO_KW WHILE_KW BREAK_KW CONTINUE_KW
+%token BANG COMPLEMENT
+%token PLUS MINUS NEG_MINUS MULT DIV MOD
+%token EQ DOUBLE_EQ NEQ LT LE GT GE AND OR
+%token BIT_AND BIT_OR XOR SHIFT_LEFT SHIFT_RIGHT
 %token EOF
 
-%left Plus Minus
-%left Mult Div Mod
-%nonassoc NMinus
+%left PLUS MINUS
+%left MULT DIV MOD
+%nonassoc NEG_MINUS
 
-%type <Ast.prog> prog
+%type <Ast.prog> program
 %type <fun_decl> fun_decl
 %type <statement> statement
 %type <exp> exp
 
-%start prog
+%start program
 
 %%
 
-prog:
-    f = fun_decl p = prog
+program:
+    f = fun_decl p = program
     { let Prog fs = p in Prog (f :: fs) }
   | EOF { Prog [] }
 ;
 
 fun_decl:
-  IntKeyword id = Id ParenOpen ParenClose BraceOpen st = statement BraceClose
+  INT_KW id = ID PAREN_OPEN PAREN_CLOSE
+  BRACE_OPEN st = statement BRACE_CLOSE
   { Fun (id, st) }
 ;
 
 statement:
-  ReturnKeyword e = exp Semicolon
+  RETURN_KW e = exp SEMICOLON
   { ReturnVal e }
 ;
 
 exp:
-    i = Int { Const (Int i) }
-  | ParenOpen e = exp ParenClose { e }
-  | e1 = exp Plus e2 = exp { BinOp (Add, e1, e2) }
-  | e1 = exp Minus e2 = exp { BinOp (Sub, e1, e2) }
-  | e1 = exp Mult e2 = exp { BinOp (Mult, e1, e2) }
-  | e1 = exp Div e2 = exp { BinOp (Div, e1, e2) }
-  | e1 = exp Mod e2 = exp { BinOp (Mod, e1, e2) }
-  | Complement e = exp { UnOp (Complement, e) }
-  | Bang e = exp { UnOp (Not, e) }
-  | Minus e = exp %prec NMinus { UnOp (Negate, e) }
+    i = INT { Const (Int i) }
+  | PAREN_OPEN e = exp PAREN_CLOSE { e }
+  | e1 = exp PLUS e2 = exp { BinOp (Add, e1, e2) }
+  | e1 = exp MINUS e2 = exp { BinOp (Sub, e1, e2) }
+  | e1 = exp MULT e2 = exp { BinOp (Mult, e1, e2) }
+  | e1 = exp DIV e2 = exp { BinOp (Div, e1, e2) }
+  | e1 = exp MOD e2 = exp { BinOp (Mod, e1, e2) }
+  | e1 = exp LT e2 = exp { BinOp (Lt, e1, e2) }
+  | e1 = exp LE e2 = exp { BinOp (Le, e1, e2) }
+  | e1 = exp GT e2 = exp { BinOp (Gt, e1, e2) }
+  | e1 = exp GE e2 = exp { BinOp (Ge, e1, e2) }
+  | e1 = exp DOUBLE_EQ e2 = exp { BinOp (Eq, e1, e2) }
+  | e1 = exp NEQ e2 = exp { BinOp (Neq, e1, e2) }
+  | e1 = exp AND e2 = exp { BinOp (And, e1, e2) }
+  | e1 = exp OR e2 = exp { BinOp (Or, e1, e2) }
+  | e1 = exp BIT_AND e2 = exp { BinOp (BitAnd, e1, e2) }
+  | e1 = exp BIT_OR e2 = exp { BinOp (BitOr, e1, e2) }
+  | e1 = exp XOR e2 = exp { BinOp (Xor, e1, e2) }
+  | e1 = exp SHIFT_LEFT e2 = exp { BinOp (ShiftL, e1, e2) }
+  | e1 = exp SHIFT_RIGHT e2 = exp { BinOp (ShiftR, e1, e2) }
+  | COMPLEMENT e = exp { UnOp (Complement, e) }
+  | BANG e = exp { UnOp (Not, e) }
+  | MINUS e = exp %prec NEG_MINUS { UnOp (Negate, e) }
 ;
 %%

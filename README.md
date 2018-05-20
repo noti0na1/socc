@@ -16,6 +16,7 @@ Dependences: `core, ppx_jane`
 
 ```bash
 git clone git@github.com:noti0na1/occ.git
+cd occ
 make
 # test
 make test
