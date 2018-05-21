@@ -1,5 +1,10 @@
 open Core
 
+type type_def =
+  | IntType
+  | CharType
+[@@deriving sexp]
+
 type const =
   | Int of int
   | Char of char
@@ -31,17 +36,24 @@ type binop =
 [@@deriving sexp]
 
 type exp =
+  | Assign of string * exp
+  | Var of string
   | Const of const
   | UnOp of unop * exp
   | BinOp of binop * exp * exp
 [@@deriving sexp]
 
 type statement =
+  | Decl of { var_type: type_def;
+              var_name: string;
+              init: exp option;
+            }
+  | Exp of exp
   | ReturnVal of exp
 [@@deriving sexp]
 
 type fun_decl =
-  | Fun of string * statement
+  | Fun of string * statement list
 [@@deriving sexp]
 
 type prog = Prog of fun_decl list

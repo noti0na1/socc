@@ -123,7 +123,7 @@ let gen_binop bop =
     cmpl "$0" "%eax";
     movl "$0" "%eax";
     setne "%al";
-    cmpl "$0" "%ec/x";
+    cmpl "$0" "%ecx";
     movl "$0" "%ecx";
     setne "%cl";
     andb "%cl" "%al"
@@ -139,17 +139,19 @@ let rec gen_exp e =
     movl "%eax" "%ecx";
     pop "%eax";
     gen_binop bop
+  | _ -> ()
 
 let gen_statement s =
   match s with
   | ReturnVal e ->
     gen_exp e; ret ()
+  | _ -> ()
 
 let gen_fun f =
   match f with
   | Fun (id, bdy) ->
     global id; label id;
-    gen_statement bdy
+    List.iteri bdy ~f:(fun _ -> gen_statement)
 
 let rec gen_prog p =
   match p with

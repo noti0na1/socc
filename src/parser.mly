@@ -16,6 +16,7 @@
 %token BIT_AND BIT_OR XOR SHIFT_LEFT SHIFT_RIGHT
 %token EOF
 
+%right EQ
 %left OR
 %left AND
 %left BIT_OR
@@ -30,7 +31,7 @@
 
 %type <Ast.prog> program
 %type <fun_decl> fun_decl
-%type <statement> statement
+%type <statement list> statement
 %type <exp> exp
 
 %start program
@@ -38,20 +39,29 @@
 %%
 
 program:
-    f = fun_decl p = program
+  | f = fun_decl p = program
     { let Prog fs = p in Prog (f :: fs) }
   | EOF { Prog [] }
 ;
 
 fun_decl:
   INT_KW id = ID PAREN_OPEN PAREN_CLOSE
-  BRACE_OPEN st = statement BRACE_CLOSE
-  { Fun (id, st) }
+  BRACE_OPEN sts = statement BRACE_CLOSE
+  { Fun (id, sts) }
 ;
 
+decl_exp:
+  | { None }
+  | EQ e = exp { Some e }
+
 statement:
-  RETURN_KW e = exp SEMICOLON
-  { ReturnVal e }
+  | { [] }
+  | INT_KW id = ID e = decl_exp SEMICOLON ss = statement
+    { (Decl { var_type = IntType; var_name = id; init = e }) :: ss }
+  | RETURN_KW e = exp SEMICOLON ss = statement
+    { (ReturnVal e) :: ss }
+  | e = exp SEMICOLON ss = statement
+    { (Exp e) :: ss }
 ;
 
 exp:
@@ -78,5 +88,7 @@ exp:
   | COMPLEMENT e = exp { UnOp (Complement, e) }
   | BANG e = exp { UnOp (Not, e) }
   | MINUS e = exp %prec NEG_MINUS { UnOp (Negate, e) }
+  | id = ID EQ e = exp { Assign (id, e) }
+  | id = ID { Var id }
 ;
 %%

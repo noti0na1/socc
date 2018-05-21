@@ -1,0 +1,9 @@
+#!/bin/bash
+
+COMPILER=./main.native
+
+$COMPILER < test/${1}.c > test/${1}.s
+
+clang test/${1}.s -o test/${1}
+
+cat test/${1}.s
