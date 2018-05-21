@@ -16,6 +16,14 @@
 %token BIT_AND BIT_OR XOR SHIFT_LEFT SHIFT_RIGHT
 %token EOF
 
+%left OR
+%left AND
+%left BIT_OR
+%left XOR
+%left BIT_AND
+%left DOUBLE_EQ NEQ
+%left LE LT GE GT
+%left SHIFT_LEFT SHIFT_RIGHT
 %left PLUS MINUS
 %left MULT DIV MOD
 %nonassoc NEG_MINUS

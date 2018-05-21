@@ -24,6 +24,16 @@ let pop = slcmd "pop"
 
 let sete = slcmd "sete"
 
+let setne = slcmd "setne"
+
+let setl = slcmd "setl"
+
+let setle = slcmd "setle"
+
+let setg = slcmd "setg"
+
+let setge = slcmd "setge"
+
 let cmpl = bicmd "cmpl"
 
 let addl = bicmd "addl"
@@ -34,7 +44,15 @@ let imul = bicmd "imul"
 
 let idivl = slcmd "idivl"
 
+let ands = bicmd "and"
+
+let ors = bicmd "or"
+
 let xor = bicmd "xor"
+
+let sall = bicmd "sall"
+
+let sarl = bicmd "sarl"
 
 let neg = slcmd "neg"
 
@@ -66,6 +84,9 @@ let gen_unop uop =
     movl "$0" "%eax";
     sete "%al"
 
+let gen_compare (f : string -> unit) =
+  cmpl "%ecx" "%eax" ; movl "$0" "%eax"; f "%al"
+
 let gen_binop bop =
   match bop with
   | Add -> addl "%ecx" "%eax"
@@ -74,6 +95,16 @@ let gen_binop bop =
   | Div -> xor "%edx" "%edx"; idivl "%ecx"
   | Mod -> xor "%edx" "%edx"; idivl "%ecx"; movl "%edx" "%eax"
   | Xor -> xor "%ecx" "%eax"
+  | BitAnd -> ands "%ecx" "%eax"
+  | BitOr -> ors "%ecx" "%eax"
+  | ShiftL -> sall "%cl" "%eax"
+  | ShiftR -> sarl "%cl" "%eax"
+  | Eq -> gen_compare sete
+  | Neq -> gen_compare setne
+  | Lt -> gen_compare setl
+  | Le -> gen_compare setle
+  | Gt -> gen_compare setg
+  | Ge -> gen_compare setge
   | _ -> ()
 
 let rec gen_exp e =
