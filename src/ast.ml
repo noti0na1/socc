@@ -43,17 +43,24 @@ type exp =
   | BinOp of binop * exp * exp
 [@@deriving sexp]
 
-type statement =
-  | Decl of { var_type: type_def;
-              var_name: string;
-              init: exp option;
-            }
+type block = statement list
+and statement =
+  | Decl of {
+      var_type: type_def;
+      name: string;
+      init: exp option;
+    }
   | Exp of exp
   | ReturnVal of exp
+  | If of {
+      cond : exp;
+      tstat : statement;
+      fstat : statement option;
+    }
+  | Block of block
 [@@deriving sexp]
 
-type fun_decl =
-  | Fun of string * statement list
+type fun_decl = Fun of string * block
 [@@deriving sexp]
 
 type prog = Prog of fun_decl list

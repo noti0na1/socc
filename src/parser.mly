@@ -31,7 +31,6 @@
 
 %type <Ast.prog> program
 %type <fun_decl> fun_decl
-%type <statement list> statement
 %type <exp> exp
 
 %start program
@@ -46,26 +45,44 @@ program:
 
 fun_decl:
   INT_KW id = ID PAREN_OPEN PAREN_CLOSE
-  BRACE_OPEN sts = statement BRACE_CLOSE
-  { Fun (id, sts) }
+  b = block
+  { Fun (id, b) }
+;
+
+block:
+  | BRACE_OPEN sts = statements BRACE_CLOSE
+    { sts }
+
+statements:
+  | { [] }
+  | s = statement ss = statements
+    { s :: ss }
+;
+
+statement:
+  | INT_KW id = ID e = decl_exp SEMICOLON
+    { Decl { var_type = IntType; name = id; init = e } }
+  | RETURN_KW e = exp SEMICOLON
+    { ReturnVal e }
+  | e = exp SEMICOLON
+    { Exp e}
+  | IF_KW PAREN_OPEN cond = exp PAREN_CLOSE
+    tstat = statement fstat = if_fstat
+    { If { cond = cond; tstat = tstat; fstat = fstat } }
+  | b = block
+    { Block b }
 ;
 
 decl_exp:
   | { None }
   | EQ e = exp { Some e }
 
-statement:
-  | { [] }
-  | INT_KW id = ID e = decl_exp SEMICOLON ss = statement
-    { (Decl { var_type = IntType; var_name = id; init = e }) :: ss }
-  | RETURN_KW e = exp SEMICOLON ss = statement
-    { (ReturnVal e) :: ss }
-  | e = exp SEMICOLON ss = statement
-    { (Exp e) :: ss }
-;
+if_fstat:
+  | { None }
+  | ELSE_KW fstat = statement { Some fstat }
 
 exp:
-    i = INT { Const (Int i) }
+  | i = INT { Const (Int i) }
   | PAREN_OPEN e = exp PAREN_CLOSE { e }
   | e1 = exp PLUS e2 = exp { BinOp (Add, e1, e2) }
   | e1 = exp MINUS e2 = exp { BinOp (Sub, e1, e2) }
