@@ -41,6 +41,7 @@ type exp =
   | Const of const
   | UnOp of unop * exp
   | BinOp of binop * exp * exp
+  | Condition of exp * exp * exp
 [@@deriving sexp]
 
 type block = statement list

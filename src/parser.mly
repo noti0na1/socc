@@ -17,6 +17,7 @@
 %token EOF
 
 %right EQ
+%right QUESTION COLON
 %left OR
 %left AND
 %left BIT_OR
@@ -107,5 +108,7 @@ exp:
   | MINUS e = exp %prec NEG_MINUS { UnOp (Negate, e) }
   | id = ID EQ e = exp { Assign (id, e) }
   | id = ID { Var id }
+  | cond = exp QUESTION texp = exp COLON fexp = exp
+    { Condition (cond, texp, fexp) }
 ;
 %%

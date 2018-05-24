@@ -2,28 +2,19 @@
 main:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	movl	$3, %eax
-	pushq	%rax
-	movl	$2, %eax
-	movl	%eax, %ecx
-	popq	%rax
-	xor	%edx, %edx
-	idivl	%ecx
-	pushq	%rax
-	movl	$2, %eax
+	movl	$1, %eax
 	pushq	%rax
 	movl	-8(%rbp), %eax
-	movl	%eax, %ecx
-	popq	%rax
-	imul	%ecx, %eax
-	pushq	%rax
-	movl	-16(%rbp), %eax
-	neg	%eax
-	pushq	%rax
-	movl	$5, %eax
-	movl	%eax, %ecx
-	popq	%rax
-	addl	%ecx, %eax
+	cmpl	$0, %eax
+	je	LmainCD00
+	movl	$2, %eax
+	movl	%eax, -8(%rbp)
+	jmp	LmainCD11
+LmainCD00:
+	movl	$3, %eax
+	movl	%eax, -8(%rbp)
+LmainCD11:
+	movl	-8(%rbp), %eax
 	leave
 	ret
 

@@ -1,23 +1,88 @@
 open Core
 open Ast
+open Fn
+
+let (>>) f g a = g (f a)
+
+exception CodeGenError of string
+
+type context =
+  {
+    fun_name : string;
+    block_level : int;
+    labelc : int;
+    index : int;
+    vars : (string * (int * int)) list;
+    out : Out_channel.t;
+  }
+
+let discard_vars ctx1 ctx2 =
+  { fun_name = ctx2.fun_name;
+    index = ctx2.index - 8; (* 64-bit *)
+    block_level = ctx2.block_level;
+    labelc = ctx2.labelc;
+    vars = ctx1.vars;
+    out = ctx2.out }
+
+let add_var id ctx =
+  { fun_name = ctx.fun_name;
+    index = ctx.index - 8; (* 64-bit *)
+    block_level = ctx.block_level;
+    labelc = ctx.labelc;
+    vars = (id, (ctx.index, ctx.block_level)) :: ctx.vars;
+    out = ctx.out }
+
+let find_var id ctx =
+  match List.Assoc.find ctx.vars id ~equal:String.equal with
+  | Some (i, _) -> i
+  | None -> raise (CodeGenError ("can't find " ^ id ^ " in the context"))
+
+(* TODO *)
+let get_var_level id ctx =
+  match List.Assoc.find ctx.vars id ~equal:String.equal with
+  | Some (_, l) -> Some l
+  | None -> None
+
+let add_block_level l ctx=
+  { fun_name = ctx.fun_name;
+    index = ctx.index;
+    block_level = ctx.block_level + l;
+    labelc = ctx.labelc;
+    vars = ctx.vars;
+    out = ctx.out }
+
+let inc_block_level = add_block_level 1
+
+let get_new_label ?name ctx  =
+  (match name with
+   | Some n -> "L" ^ ctx.fun_name ^ n ^ (string_of_int ctx.labelc)
+   | None -> "L" ^ ctx.fun_name ^ (string_of_int ctx.labelc)),
+  { fun_name = ctx.fun_name;
+    index = ctx.index;
+    block_level = ctx.block_level;
+    labelc = ctx.labelc + 1;
+    vars = ctx.vars;
+    out = ctx.out }
 
 let off i a =
   (string_of_int i) ^ "(" ^ a ^ ")"
 
-let nacmd c () =
-  "\t" ^ c ^ "\n" |> print_string
+let my_print_string s ctx = Out_channel.output_string ctx.out s; ctx
+
+let nacmd c =
+  "\t" ^ c ^ "\n" |> my_print_string
 
 let slcmd c a =
-  "\t" ^ c ^ "\t" ^ a ^ "\n" |> print_string
+  "\t" ^ c ^ "\t" ^ a ^ "\n" |> my_print_string
 
 let bicmd c a b =
-  "\t" ^ c ^ "\t" ^ a ^ ", " ^ b ^ "\n" |> print_string
+  "\t" ^ c ^ "\t" ^ a ^ ", " ^ b ^ "\n" |> my_print_string
 
 let globl f =
-  "\t.globl " ^ f ^ "\n" |> print_string
+  "\t.globl " ^ f ^ "\n" |> my_print_string
 
 let label f =
-  f ^ ":\n" |> print_string
+  f ^ ":\n" |> my_print_string
 
 let movl = bicmd "movl"
 
@@ -108,70 +173,40 @@ let ret = nacmd "ret"
 
 let retq = nacmd "retq"
 
-exception CodeGenError of string
-
-type context =
-  {
-    index : int;
-    block_level : int;
-    vars : (string * (int * int)) list;
-  }
-
-let add_var ctx id =
-  { index = ctx.index - 8; (* 64-bit *)
-    block_level = ctx.block_level;
-    vars = (id, (ctx.index, ctx.block_level)) :: ctx.vars }
-
-let find_var ctx id =
-  match List.Assoc.find ctx.vars id ~equal:String.equal with
-  | Some (i, _) -> i
-  | None -> raise (CodeGenError ("can't find " ^ id ^ " in the context"))
-
-(* TODO *)
-let get_var_level ctx id =
-  match List.Assoc.find ctx.vars id ~equal:String.equal with
-  | Some (_, l) -> Some l
-  | None -> None
-
-let add_block_level ctx l =
-  { index = ctx.index;
-    block_level = ctx.block_level + l;
-    vars = ctx.vars }
-
-let inc_block_level ctx = add_block_level ctx 1
-
 let gen_const c =
   match c with
   | Int i -> movl ("$" ^ string_of_int i) "%eax"
   | Char c -> movl ("$" ^ string_of_int (Char.to_int c)) "%eax"
-  | String s -> print_string s
+  | String s -> my_print_string s
 
-let gen_unop uop =
+let gen_unop uop  =
   match uop with
   | Negate -> neg "%eax"
-  | Pos -> ()
+  | Pos -> id
   | Complement -> nnot "%eax"
-  | Not ->
-    cmpl "$0" "%eax";
-    xor "%eax" "%eax";
-    sete "%al"
+  | Not -> id
+    >> cmpl "$0" "%eax"
+    >> xor "%eax" "%eax"
+    >> sete "%al"
 
-let gen_compare (inst : string -> unit) =
-  cmpl "%ecx" "%eax" ;
-  xor "%eax" "%eax";
-  inst "%al"
+let gen_compare (inst : string -> context -> context) ctx =
+  ctx
+  |> cmpl "%ecx" "%eax"
+  |> xor "%eax" "%eax"
+  |> inst "%al"
 
 let gen_binop bop =
   match bop with
   | Add -> addl "%ecx" "%eax"
   | Sub -> subl "%ecx" "%eax"
   | Mult -> imul "%ecx" "%eax"
-  | Div ->
-    xor "%edx" "%edx";
-    idivl "%ecx"
-  | Mod -> xor "%edx" "%edx";
-    idivl "%ecx";
-    movl "%edx" "%eax"
+  | Div -> id
+    >> xor "%edx" "%edx"
+    >> idivl "%ecx"
+  | Mod -> id
+    >> xor "%edx" "%edx"
+    >> idivl "%ecx"
+    >> movl "%edx" "%eax"
   | Xor -> xor "%ecx" "%eax"
   | BitAnd -> ands "%ecx" "%eax"
   | BitOr -> ors "%ecx" "%eax"
@@ -183,54 +218,67 @@ let gen_binop bop =
   | Le -> gen_compare setle
   | Gt -> gen_compare setg
   | Ge -> gen_compare setge
-  | Or ->
-    orl "%ecx" "%eax";
-    xor "%eax" "%eax";
-    setne "%al"
-  | And ->
-    cmpl "$0" "%eax";
-    xor "%eax" "%eax";
-    setne "%al";
-    cmpl "$0" "%ecx";
-    xor "%ecx" "%ecx";
-    setne "%cl";
-    andb "%cl" "%al"
+  | Or -> id
+    >> orl "%ecx" "%eax"
+    >> xor "%eax" "%eax"
+    >> setne "%al"
+  | And -> id
+    >> cmpl "$0" "%eax"
+    >> xor "%eax" "%eax"
+    >> setne "%al"
+    >> cmpl "$0" "%ecx"
+    >> xor "%ecx" "%ecx"
+    >> setne "%cl"
+    >> andb "%cl" "%al"
 
-let gen_fun_end () =
+let gen_fun_end =
   (* movq "%rbp" "%rsp";
      popq "%rbp"; *)
-  leave ();
-  ret ()
+  leave >> ret
 
-let rec gen_exp (ctx : context) e =
+let rec gen_exp e (ctx : context) =
   match e with
   | Assign (var, vexp) ->
-    let _ = gen_exp ctx vexp in
-    let i = find_var ctx var in
-    movl "%eax" (off i "%rbp")
+    let ctx0 = gen_exp vexp ctx in
+    let i = find_var var ctx0 in
+    movl "%eax" (off i "%rbp") ctx0
   | Var var ->
-    let i = find_var ctx var in
-    movl (off i "%rbp") "%eax"
+    let i = find_var var ctx in
+    movl (off i "%rbp") "%eax" ctx
   | Const c ->
-    gen_const c
+    gen_const c ctx
   | UnOp (uop, e) ->
-    gen_exp ctx e;
-    gen_unop uop;
+    ctx
+    |> gen_exp e
+    |> gen_unop uop
   | BinOp (bop, e1, e2) ->
-    gen_exp ctx e1;
-    pushq "%rax";
-    gen_exp ctx e2;
-    movl "%eax" "%ecx";
-    popq "%rax";
-    gen_binop bop
-(* | _ -> () *)
+    ctx
+    |> gen_exp e1
+    |> pushq "%rax"
+    |> gen_exp e2
+    |> movl "%eax" "%ecx"
+    |> popq "%rax"
+    |> gen_binop bop
+  | Condition (cond, texp, fexp) ->
+    let (lb0, ctx0) = get_new_label ~name:"IF0" ctx in
+    let (lb1, ctx1) = get_new_label ~name:"IF1" ctx0 in
+    ctx1
+    |> gen_exp cond
+    |> cmpl "$0" "%eax"
+    |> je lb0
+    |> gen_exp texp
+    |> jmp lb1
+    |> label lb0
+    |> gen_exp fexp
+    |> label lb1
 
-let rec gen_statement ctx sta =
+
+let rec gen_statement sta ctx=
   match sta with
   | Decl var ->
     (* TODO *)
     (* check if var has been define in the same block *)
-    (match get_var_level ctx var.name with
+    (match get_var_level var.name ctx with
      | Some l ->
        if l = ctx.block_level
        then raise (CodeGenError (var.name ^ " has already been defined in the same block"))
@@ -238,49 +286,68 @@ let rec gen_statement ctx sta =
      | None -> ());
     (match var.init with
      | Some iexp ->
-       gen_exp ctx iexp; ()
+       gen_exp iexp ctx
      | None ->
        (* init default value *)
-       xor "%eax" "%eax"; );
-    pushq "%rax";
-    add_var ctx var.name
+       xor "%eax" "%eax" ctx)
+    |> pushq "%rax"
+    |> add_var var.name
   | Exp e ->
-    gen_exp ctx e; ctx
+    gen_exp e ctx
   | ReturnVal e ->
-    gen_exp ctx e;
-    gen_fun_end ();
     ctx
+    |> gen_exp e
+    |> gen_fun_end
   | Block ss ->
-    let _ = gen_statements (add_block_level ctx 1) ss in
     ctx
-  | _ -> ctx
+    |> inc_block_level
+    |> gen_statements ss
+    |> discard_vars ctx
+  | If ifs ->
+    let (lb0, ctx0) = get_new_label ~name:"CD0" ctx in
+    let (lb1, ctx1) = get_new_label ~name:"CD1" ctx0 in
+    ctx1
+    |> gen_exp ifs.cond
+    |> cmpl "$0" "%eax"
+    |> je lb0
+    |> gen_statement ifs.tstat
+    |> jmp lb1
+    |> label lb0
+    |> (match ifs.fstat with
+        | Some fs -> gen_statement fs
+        | None -> id)
+    |> label lb1
 
 (* TODO *)
-and gen_statements ctx stas =
+and gen_statements stas =
   match stas with
-  | [ReturnVal e] ->
-    gen_statement ctx (ReturnVal e)
-  | [s] -> (* when function doesn't have return, return 0 *)
-    let ctx0 = gen_statement ctx s in
-    gen_statement ctx0 (ReturnVal (Const (Int 0)))
+  (* | [ReturnVal e] ->
+      gen_statement (ReturnVal e)
+     | [s] -> (* when function doesn't have return, return 0 *)
+      gen_statement s >>
+      gen_statement @@ ReturnVal (Const (Int 0)) *)
   | s :: ss ->
-    let ctx0 = gen_statement ctx s in
-    gen_statements ctx0 ss
-  | [] -> ctx
+    gen_statement s >>
+    gen_statements ss
+  | [] -> id
 
-let gen_fun f =
+let gen_fun f out =
   match f with
   | Fun (id, bdy) ->
-    globl id;
-    label id;
-    pushq "%rbp";
-    movq "%rsp" "%rbp";
-    gen_statements { index= -8; block_level = 0; vars = [] } bdy
+    { fun_name = id; index= -8;
+      block_level = 0; labelc = 0;
+      vars = [];
+      out = out }
+    |> globl id
+    |> label id
+    |> pushq "%rbp"
+    |> movq "%rsp" "%rbp"
+    |> gen_statements bdy
 
 let rec gen_prog p =
   match p with
   | Prog [] -> ();
   | Prog (f :: fs) ->
-    let _ = gen_fun f in
+    let _ = gen_fun f Out_channel.stdout in
     Out_channel.newline stdout;
     gen_prog (Prog fs)
