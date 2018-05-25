@@ -42,10 +42,12 @@ type exp =
   | UnOp of unop * exp
   | BinOp of binop * exp * exp
   | Condition of exp * exp * exp
+  | Nop
 [@@deriving sexp]
 
 type block = statement list
 and statement =
+  | Compound of block
   | Decl of {
       var_type: type_def;
       name: string;
@@ -58,7 +60,15 @@ and statement =
       tstat : statement;
       fstat : statement option;
     }
-  | Block of block
+  | For of {
+      init : exp;
+      cond : exp;
+      post : exp;
+      body : statement;
+    }
+  | While of exp * statement
+  | Do of exp * statement
+  | Break | Continue
 [@@deriving sexp]
 
 type fun_decl = Fun of string * block

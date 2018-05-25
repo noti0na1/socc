@@ -6,23 +6,14 @@ let (>>) f g a = g (f a)
 
 exception CodeGenError of string
 
-type context =
-  {
-    fun_name : string;
-    block_level : int;
-    labelc : int;
-    index : int;
-    vars : (string * (int * int)) list;
-    out : Out_channel.t;
-  }
-
-let discard_vars ctx1 ctx2 =
-  { fun_name = ctx2.fun_name;
-    index = ctx2.index - 8; (* 64-bit *)
-    block_level = ctx2.block_level;
-    labelc = ctx2.labelc;
-    vars = ctx1.vars;
-    out = ctx2.out }
+type context = {
+  fun_name : string;
+  block_level : int;
+  labelc : int;
+  index : int;
+  vars : (string * (int * int)) list;
+  out : Out_channel.t;
+} [@@deriving fields]
 
 let add_var id ctx =
   { fun_name = ctx.fun_name;
@@ -53,16 +44,20 @@ let add_block_level l ctx=
 
 let inc_block_level = add_block_level 1
 
-let get_new_label ?name ctx  =
-  (match name with
-   | Some n -> "L" ^ ctx.fun_name ^ n ^ (string_of_int ctx.labelc)
-   | None -> "L" ^ ctx.fun_name ^ (string_of_int ctx.labelc)),
+let get_new_label ?name ctx =
+  match name with
+  | Some n -> "L" ^ ctx.fun_name ^ n ^ (string_of_int ctx.labelc)
+  | None -> "L" ^ ctx.fun_name ^ (string_of_int ctx.labelc)
+
+let inc_labelc ctx =
   { fun_name = ctx.fun_name;
     index = ctx.index;
     block_level = ctx.block_level;
     labelc = ctx.labelc + 1;
     vars = ctx.vars;
     out = ctx.out }
+
+let cint i =  "$" ^ (string_of_int i)
 
 let off i a =
   (string_of_int i) ^ "(" ^ a ^ ")"
@@ -120,7 +115,11 @@ let cmpl = bicmd "cmpl"
 
 let addl = bicmd "addl"
 
+let addq = bicmd "addq"
+
 let subl = bicmd "subl"
+
+let subq = bicmd "subq"
 
 let imul = bicmd "imul"
 
@@ -260,9 +259,10 @@ let rec gen_exp e (ctx : context) =
     |> popq "%rax"
     |> gen_binop bop
   | Condition (cond, texp, fexp) ->
-    let (lb0, ctx0) = get_new_label ~name:"IF0" ctx in
-    let (lb1, ctx1) = get_new_label ~name:"IF1" ctx0 in
-    ctx1
+    let lb0 = get_new_label ~name:"CDA" ctx in
+    let lb1 = get_new_label ~name:"CDB" ctx in
+    ctx
+    |> inc_labelc
     |> gen_exp cond
     |> cmpl "$0" "%eax"
     |> je lb0
@@ -271,9 +271,18 @@ let rec gen_exp e (ctx : context) =
     |> label lb0
     |> gen_exp fexp
     |> label lb1
+  | Nop -> ctx
 
+let deallocate_vars ctx1 ctx2 =
+  ignore @@ addq (cint (ctx1.index - ctx2.index)) "%rsp" ctx2;
+  { fun_name = ctx1.fun_name;
+    index = ctx1.index;
+    block_level = ctx1.block_level;
+    labelc = ctx2.labelc;
+    vars = ctx1.vars;
+    out = ctx1.out }
 
-let rec gen_statement sta ctx=
+let rec gen_statement sta ctx =
   match sta with
   | Decl var ->
     (* TODO *)
@@ -298,15 +307,16 @@ let rec gen_statement sta ctx=
     ctx
     |> gen_exp e
     |> gen_fun_end
-  | Block ss ->
+  | Compound ss ->
     ctx
     |> inc_block_level
     |> gen_statements ss
-    |> discard_vars ctx
+    |> deallocate_vars ctx
   | If ifs ->
-    let (lb0, ctx0) = get_new_label ~name:"CD0" ctx in
-    let (lb1, ctx1) = get_new_label ~name:"CD1" ctx0 in
-    ctx1
+    let lb0 = get_new_label ~name:"IFA" ctx in
+    let lb1 = get_new_label ~name:"IFB" ctx in
+    ctx
+    |> inc_labelc
     |> gen_exp ifs.cond
     |> cmpl "$0" "%eax"
     |> je lb0
@@ -317,6 +327,7 @@ let rec gen_statement sta ctx=
         | Some fs -> gen_statement fs
         | None -> id)
     |> label lb1
+  | _ -> ctx
 
 (* TODO *)
 and gen_statements stas =

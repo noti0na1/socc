@@ -69,9 +69,23 @@ statement:
     { Exp e}
   | IF_KW PAREN_OPEN cond = exp PAREN_CLOSE
     tstat = statement fstat = if_fstat
-    { If { cond = cond; tstat = tstat; fstat = fstat } }
+    { If { cond; tstat; fstat; } }
+  | FOR_KW PAREN_OPEN init = exp SEMICOLON
+    cond = exp SEMICOLON post = exp PAREN_CLOSE
+    body = statement
+    { For { init; cond; post; body; } }
+  | WHILE_KW PAREN_OPEN cond = exp PAREN_CLOSE
+    body = statement
+    { While (cond, body) }
+  | DO_KW body = statement WHILE_KW
+    PAREN_OPEN cond = exp PAREN_CLOSE SEMICOLON
+    { Do (cond, body) }
+  | BREAK_KW SEMICOLON
+    { Break }
+  | CONTINUE_KW SEMICOLON
+    { Continue }
   | b = block
-    { Block b }
+    { Compound b }
 ;
 
 decl_exp:
@@ -83,26 +97,10 @@ if_fstat:
   | ELSE_KW fstat = statement { Some fstat }
 
 exp:
+  | { Nop }
   | i = INT { Const (Int i) }
   | PAREN_OPEN e = exp PAREN_CLOSE { e }
-  | e1 = exp PLUS e2 = exp { BinOp (Add, e1, e2) }
-  | e1 = exp MINUS e2 = exp { BinOp (Sub, e1, e2) }
-  | e1 = exp MULT e2 = exp { BinOp (Mult, e1, e2) }
-  | e1 = exp DIV e2 = exp { BinOp (Div, e1, e2) }
-  | e1 = exp MOD e2 = exp { BinOp (Mod, e1, e2) }
-  | e1 = exp LT e2 = exp { BinOp (Lt, e1, e2) }
-  | e1 = exp LE e2 = exp { BinOp (Le, e1, e2) }
-  | e1 = exp GT e2 = exp { BinOp (Gt, e1, e2) }
-  | e1 = exp GE e2 = exp { BinOp (Ge, e1, e2) }
-  | e1 = exp DOUBLE_EQ e2 = exp { BinOp (Eq, e1, e2) }
-  | e1 = exp NEQ e2 = exp { BinOp (Neq, e1, e2) }
-  | e1 = exp AND e2 = exp { BinOp (And, e1, e2) }
-  | e1 = exp OR e2 = exp { BinOp (Or, e1, e2) }
-  | e1 = exp BIT_AND e2 = exp { BinOp (BitAnd, e1, e2) }
-  | e1 = exp BIT_OR e2 = exp { BinOp (BitOr, e1, e2) }
-  | e1 = exp XOR e2 = exp { BinOp (Xor, e1, e2) }
-  | e1 = exp SHIFT_LEFT e2 = exp { BinOp (ShiftL, e1, e2) }
-  | e1 = exp SHIFT_RIGHT e2 = exp { BinOp (ShiftR, e1, e2) }
+  | e1 = exp op = binop e2 = exp { BinOp (op, e1, e2) }
   | COMPLEMENT e = exp { UnOp (Complement, e) }
   | BANG e = exp { UnOp (Not, e) }
   | MINUS e = exp %prec NEG_MINUS { UnOp (Negate, e) }
@@ -111,4 +109,26 @@ exp:
   | cond = exp QUESTION texp = exp COLON fexp = exp
     { Condition (cond, texp, fexp) }
 ;
+
+%inline binop:
+  | PLUS { Add }
+  | MINUS { Sub }
+  | MULT { Mult }
+  | DIV { Div }
+  | MOD { Mod }
+  | LT { Lt }
+  | LE { Le }
+  | GT { Gt }
+  | GE { Ge }
+  | DOUBLE_EQ { Eq }
+  | NEQ { Neq }
+  | AND { And }
+  | OR { Or }
+  | BIT_AND { BitAnd }
+  | BIT_OR { BitOr }
+  | XOR { Xor }
+  | SHIFT_LEFT { ShiftL }
+  | SHIFT_RIGHT { ShiftR }
+;
+
 %%
