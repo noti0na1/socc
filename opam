@@ -10,10 +10,10 @@ dev-repo: "https://github.com/noti0na1/occ"
 build: [
   [make]
 ]
-install: [make "native"]
-remove: ["ocamlfind" "remove" "occ"]
+remove: [make "clean"]
 depends: [
   "ocamlfind" {build}
   "core"
   "ppx_jane"
 ]
+descr: "A C Compiler in OCaml"
