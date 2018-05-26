@@ -45,14 +45,16 @@ type exp =
   | Nop
 [@@deriving sexp]
 
+type decl_exp = {
+  var_type: type_def;
+  name: string;
+  init: exp option;
+} [@@deriving sexp]
+
 type block = statement list
 and statement =
   | Compound of block
-  | Decl of {
-      var_type: type_def;
-      name: string;
-      init: exp option;
-    }
+  | Decl of decl_exp
   | Exp of exp
   | ReturnVal of exp
   | If of {
@@ -62,6 +64,12 @@ and statement =
     }
   | For of {
       init : exp;
+      cond : exp;
+      post : exp;
+      body : statement;
+    }
+  | ForDecl of {
+      init : decl_exp;
       cond : exp;
       post : exp;
       body : statement;

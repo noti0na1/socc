@@ -61,8 +61,8 @@ statements:
 ;
 
 statement:
-  | INT_KW id = ID e = decl_exp SEMICOLON
-    { Decl { var_type = IntType; name = id; init = e } }
+  | de = decl_exp SEMICOLON
+    { Decl de }
   | RETURN_KW e = exp SEMICOLON
     { ReturnVal e }
   | e = exp SEMICOLON
@@ -74,6 +74,10 @@ statement:
     cond = exp SEMICOLON post = exp PAREN_CLOSE
     body = statement
     { For { init; cond; post; body; } }
+  | FOR_KW PAREN_OPEN init = decl_exp SEMICOLON
+    cond = exp SEMICOLON post = exp PAREN_CLOSE
+    body = statement
+    { ForDecl { init; cond; post; body; } }
   | WHILE_KW PAREN_OPEN cond = exp PAREN_CLOSE
     body = statement
     { While (cond, body) }
@@ -93,6 +97,10 @@ statement:
 ;
 
 decl_exp:
+  INT_KW id = ID e = decl_exp_init
+  { { var_type = IntType; name = id; init = e } }
+
+decl_exp_init:
   | { None }
   | EQ e = exp { Some e }
 

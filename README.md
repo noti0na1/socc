@@ -36,9 +36,10 @@ gcc test.s -o test
 
 ```c
 int main() {
-    int a = 3 / 2;
-    int b = 2 * a;
-    return -b + 5;
+    int a = 1;
+    for (int i = 1; i <= 5; i = i + 1)
+        a = a * i;
+    return a;
 }
 ```
 
@@ -47,28 +48,40 @@ int main() {
 main:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	movl	$3, %eax
+	movl	$1, %eax
 	pushq	%rax
-	movl	$2, %eax
-	movl	%eax, %ecx
-	popq	%rax
-	xor	%edx, %edx
-	idivl	%ecx
+	movl	$1, %eax
 	pushq	%rax
-	movl	$2, %eax
-	pushq	%rax
-	movl	-8(%rbp), %eax
-	movl	%eax, %ecx
-	popq	%rax
-	imul	%ecx, %eax
-	pushq	%rax
+LmainFORA0:
 	movl	-16(%rbp), %eax
-	neg	%eax
 	pushq	%rax
 	movl	$5, %eax
 	movl	%eax, %ecx
 	popq	%rax
+	cmpl	%ecx, %eax
+	movl	$0, %eax
+	setle	%al
+	cmpl	$0, %eax
+	je		LmainFORC0
+	movl	-8(%rbp), %eax
+	pushq	%rax
+	movl	-16(%rbp), %eax
+	movl	%eax, %ecx
+	popq	%rax
+	imul	%ecx, %eax
+	movl	%eax, -8(%rbp)
+LmainFORB0:
+	movl	-16(%rbp), %eax
+	pushq	%rax
+	movl	$1, %eax
+	movl	%eax, %ecx
+	popq	%rax
 	addl	%ecx, %eax
+	movl	%eax, -16(%rbp)
+	jmp		LmainFORA0
+LmainFORC0:
+	addq	$8, %rsp
+	movl	-8(%rbp), %eax
 	leave
 	ret
 ```
@@ -91,18 +104,16 @@ The output assembly is for x64 platform
 
 ## TODO
 
-- [ ] implement if
-- [ ] implement ?:
-- [ ] implement while
-- [ ] implement for
 - [ ] implement more assignments += -= ...
+- [ ] support comment
 - [ ] implement function call
-- [ ] improve parser
-- [ ] change code generation to output
-- [ ] add error, warning ...
+- [ ] implement struct
+- [ ] implement pointer
+- [ ] improve parser more
+- [ ] add error, warning print ...
 
 ## Licence
 
-MIT License
+OCC is distributed under the terms of [MIT License](LICENSE)
 
 Copyright (c) 2018 noti0na1

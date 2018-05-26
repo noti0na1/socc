@@ -10,8 +10,8 @@ type context = {
   fun_name : string;
   block_level : int;
   labelc : int;
-  startlb : string option;
-  endlb : string option;
+  startlb : string list;
+  endlb : string list;
   index : int;
   vars : (string * (int * int)) list;
   out : Out_channel.t;
@@ -68,18 +68,18 @@ let inc_labelc ctx =
 let cint i =  "$" ^ (string_of_int i)
 
 let off i a =
-  (string_of_int i) ^ "(" ^ a ^ ")"
+  String.concat [string_of_int i; "("; a; ")"]
 
 let my_print_string s ctx = Out_channel.output_string ctx.out s; ctx
 
 let nacmd c =
-  "\t" ^ c ^ "\n" |> my_print_string
+  String.concat ["\t";  c;  "\n"] |> my_print_string
 
 let slcmd c a =
-  "\t" ^ c ^ "\t" ^ a ^ "\n" |> my_print_string
+  String.concat ["\t"; c; "\t"; a; "\n"] |> my_print_string
 
 let bicmd c a b =
-  "\t" ^ c ^ "\t" ^ a ^ ", " ^ b ^ "\n" |> my_print_string
+  String.concat ["\t"; c; "\t"; a; ", "; b; "\n"] |> my_print_string
 
 let globl f =
   "\t.globl " ^ f ^ "\n" |> my_print_string
@@ -193,13 +193,13 @@ let gen_unop uop  =
   | Complement -> nnot "%eax"
   | Not -> id
     >> cmpl "$0" "%eax"
-    >> xor "%eax" "%eax"
+    >> movl "$0" "%eax"
     >> sete "%al"
 
 let gen_compare (inst : string -> context -> context) ctx =
   ctx
   |> cmpl "%ecx" "%eax"
-  |> xor "%eax" "%eax"
+  |> movl "$0" "%eax"
   |> inst "%al"
 
 let gen_binop bop =
@@ -208,10 +208,10 @@ let gen_binop bop =
   | Sub -> subl "%ecx" "%eax"
   | Mult -> imul "%ecx" "%eax"
   | Div -> id
-    >> xor "%edx" "%edx"
+    >> movl "$0" "%eax"
     >> idivl "%ecx"
   | Mod -> id
-    >> xor "%edx" "%edx"
+    >> movl "$0" "%edx"
     >> idivl "%ecx"
     >> movl "%edx" "%eax"
   | Xor -> xor "%ecx" "%eax"
@@ -227,14 +227,14 @@ let gen_binop bop =
   | Ge -> gen_compare setge
   | Or -> id
     >> orl "%ecx" "%eax"
-    >> xor "%eax" "%eax"
+    >> movl "$0" "%eax"
     >> setne "%al"
   | And -> id
     >> cmpl "$0" "%eax"
-    >> xor "%eax" "%eax"
+    >> movl "$0" "%eax"
     >> setne "%al"
     >> cmpl "$0" "%ecx"
-    >> xor "%ecx" "%ecx"
+    >> movl "$0" "%ecx"
     >> setne "%cl"
     >> andb "%cl" "%al"
 
@@ -281,6 +281,25 @@ let rec gen_exp e (ctx : context) =
     |> label lb1
   | Nop -> ctx
 
+let gen_decl_exp de ctx =
+  (* TODO *)
+  (* check if var has been define in the same block *)
+  (match get_var_level de.name ctx with
+   | Some l ->
+     if l = ctx.block_level
+     then raise (CodeGenError
+                   (de.name ^ " has already been defined in the same block"))
+     else ()
+   | None -> ());
+  (match de.init with
+   | Some iexp ->
+     gen_exp iexp ctx
+   | None ->
+     (* init default value *)
+     movl "$0" "%eax" ctx)
+  |> pushq "%rax"
+  |> add_var de.name
+
 let deallocate_vars ctx1 ctx2 =
   ignore @@ addq (cint (ctx1.index - ctx2.index)) "%rsp" ctx2;
   { fun_name = ctx1.fun_name;
@@ -293,14 +312,29 @@ let deallocate_vars ctx1 ctx2 =
     out = ctx1.out }
 
 let set_labels lb0 lb1 ctx =
+  (* print_string "!set"; *)
   { fun_name = ctx.fun_name;
     index = ctx.index;
     block_level = ctx.block_level;
     labelc = ctx.labelc;
-    startlb = Some lb0;
-    endlb = Some lb1;
+    startlb = lb0 :: ctx.startlb;
+    endlb = lb1:: ctx.endlb;
     vars = ctx.vars;
     out = ctx.out }
+
+let unset_labels ctx =
+  (* print_string "!unset"; *)
+  match ctx.startlb, ctx.endlb with
+  | (_ :: sls), (_ :: els) ->
+    { fun_name = ctx.fun_name;
+      index = ctx.index;
+      block_level = ctx.block_level;
+      labelc = ctx.labelc;
+      startlb = sls;
+      endlb = els;
+      vars = ctx.vars;
+      out = ctx.out }
+  | _ -> raise (CodeGenError "unable to unset labels")
 
 (* let rec replace_statement lb0 lb1 s =
    match s with
@@ -322,23 +356,8 @@ let set_labels lb0 lb1 ctx =
 
 let rec gen_statement sta ctx =
   match sta with
-  | Decl var ->
-    (* TODO *)
-    (* check if var has been define in the same block *)
-    (match get_var_level var.name ctx with
-     | Some l ->
-       if l = ctx.block_level
-       then raise (CodeGenError (var.name ^ " has already been defined in the same block"))
-       else ()
-     | None -> ());
-    (match var.init with
-     | Some iexp ->
-       gen_exp iexp ctx
-     | None ->
-       (* init default value *)
-       xor "%eax" "%eax" ctx)
-    |> pushq "%rax"
-    |> add_var var.name
+  | Decl de ->
+    gen_decl_exp de ctx
   | Exp e ->
     gen_exp e ctx
   | ReturnVal e ->
@@ -355,7 +374,6 @@ let rec gen_statement sta ctx =
     let lb1 = get_new_label ~name:"IFB" ctx in
     ctx
     |> inc_labelc
-    |> set_labels lb0 lb1
     |> gen_exp ifs.cond
     |> cmpl "$0" "%eax"
     |> je lb0
@@ -380,6 +398,7 @@ let rec gen_statement sta ctx =
     |> gen_statement body
     |> jmp lb0
     |> label lb1
+    |> unset_labels
   | Do (cond, body) ->
     let lb0 = get_new_label ~name:"DOA" ctx in
     let lb1 = get_new_label ~name:"DOB" ctx in
@@ -393,29 +412,44 @@ let rec gen_statement sta ctx =
     |> je lb1
     |> jmp lb0
     |> label lb1
+    |> unset_labels
+  (* TODO *)
   | For f ->
-    let lb0 = get_new_label ~name:"FORA" ctx in
-    let lb1 = get_new_label ~name:"FORB" ctx in
-    ctx
-    |> inc_labelc
-    |> set_labels lb0 lb1
-    |> gen_exp f.init
-    |> label lb0
-    |> gen_exp f.cond
-    |> je lb1
-    |> gen_statement f.body
-    |> gen_exp f.post
-    |> label lb1
+    gen_for (gen_exp f.init) f.cond f.post f.body ctx
+  (* TODO *)
+  | ForDecl f ->
+    gen_for (gen_decl_exp f.init) f.cond f.post f.body ctx
   | Break ->
     (match ctx.endlb with
-     | Some l -> jmp l ctx
-     | None -> raise (CodeGenError "not in a loop"))
+     | l :: _ -> jmp l ctx
+     | [] -> raise (CodeGenError "not in a loop"))
   | Continue ->
     (match ctx.startlb with
-     | Some l -> jmp l ctx
-     | None -> raise (CodeGenError "not in a loop"))
+     | l :: _ -> jmp l ctx
+     | [] -> raise (CodeGenError "not in a loop"))
   | Label l -> label l ctx
   | Goto l -> jmp l ctx
+
+and gen_for gen_init cond post body ctx =
+  let lb0 = get_new_label ~name:"FORA" ctx in
+  let lb1 = get_new_label ~name:"FORB" ctx in
+  let lb2 = get_new_label ~name:"FORC" ctx in
+  ctx
+  |> inc_block_level
+  |> inc_labelc
+  |> set_labels lb0 lb2
+  |> gen_init
+  |> label lb0
+  |> gen_exp cond
+  |> cmpl "$0" "%eax"
+  |> je lb2
+  |> gen_statement body
+  |> label lb1
+  |> gen_exp post
+  |> jmp lb0
+  |> label lb2
+  |> unset_labels
+  |> deallocate_vars ctx
 
 (* TODO *)
 and gen_statements stas =
@@ -435,7 +469,7 @@ let gen_fun f out =
   | Fun (id, bdy) ->
     { fun_name = id; index= -8;
       block_level = 0; labelc = 0;
-      startlb = None;  endlb = None;
+      startlb = [];  endlb = [];
       vars = []; out = out }
     |> globl id
     |> label id

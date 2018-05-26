@@ -2,52 +2,40 @@
 main:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	movl	$2, %eax
+	movl	$1, %eax
 	pushq	%rax
-	movl	-8(%rbp), %eax
+	movl	$1, %eax
 	pushq	%rax
-	movl	$2, %eax
+LmainFORA0:
+	movl	-16(%rbp), %eax
+	pushq	%rax
+	movl	$5, %eax
 	movl	%eax, %ecx
 	popq	%rax
 	cmpl	%ecx, %eax
-	xor		%eax, %eax
-	setge	%al
+	movl	$0, %eax
+	setle	%al
 	cmpl	$0, %eax
-	je	LmainIFA0
-	movl	$3, %eax
+	je	LmainFORC0
+	movl	-8(%rbp), %eax
 	pushq	%rax
+	movl	-16(%rbp), %eax
+	movl	%eax, %ecx
+	popq	%rax
+	imul	%ecx, %eax
+	movl	%eax, -8(%rbp)
+LmainFORB0:
 	movl	-16(%rbp), %eax
 	pushq	%rax
 	movl	$1, %eax
 	movl	%eax, %ecx
 	popq	%rax
 	addl	%ecx, %eax
-	pushq	%rax
-	movl	-24(%rbp), %eax
-	pushq	%rax
-	movl	$2, %eax
-	movl	%eax, %ecx
-	popq	%rax
-	imul	%ecx, %eax
-	movl	%eax, -8(%rbp)
-	addq	$16, %rsp
-	jmp	LmainIFB0
-LmainIFA0:
+	movl	%eax, -16(%rbp)
+	jmp	LmainFORA0
+LmainFORC0:
+	addq	$8, %rsp
 	movl	-8(%rbp), %eax
-	cmpl	$0, %eax
-	je	LmainCDA1
-	movl	$7, %eax
-	jmp	LmainCDB1
-LmainCDA1:
-	movl	$9, %eax
-LmainCDB1:
-	movl	%eax, -8(%rbp)
-	addq	$0, %rsp
-LmainIFB0:
-	movl	-8(%rbp), %eax
-	pushq	%rax
-	movl	$0, %eax
-	movl	%eax, -8(%rbp)
-	movl	-16(%rbp), %eax
 	leave
 	ret
+
