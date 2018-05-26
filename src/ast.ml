@@ -69,6 +69,8 @@ and statement =
   | While of exp * statement
   | Do of exp * statement
   | Break | Continue
+  | Label of string
+  | Goto of string
 [@@deriving sexp]
 
 type fun_decl = Fun of string * block

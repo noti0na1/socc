@@ -10,6 +10,8 @@ type context = {
   fun_name : string;
   block_level : int;
   labelc : int;
+  startlb : string option;
+  endlb : string option;
   index : int;
   vars : (string * (int * int)) list;
   out : Out_channel.t;
@@ -20,6 +22,8 @@ let add_var id ctx =
     index = ctx.index - 8; (* 64-bit *)
     block_level = ctx.block_level;
     labelc = ctx.labelc;
+    startlb = ctx.startlb;
+    endlb = ctx.endlb;
     vars = (id, (ctx.index, ctx.block_level)) :: ctx.vars;
     out = ctx.out }
 
@@ -39,6 +43,8 @@ let add_block_level l ctx=
     index = ctx.index;
     block_level = ctx.block_level + l;
     labelc = ctx.labelc;
+    startlb = ctx.startlb;
+    endlb = ctx.endlb;
     vars = ctx.vars;
     out = ctx.out }
 
@@ -54,6 +60,8 @@ let inc_labelc ctx =
     index = ctx.index;
     block_level = ctx.block_level;
     labelc = ctx.labelc + 1;
+    startlb = ctx.startlb;
+    endlb = ctx.endlb;
     vars = ctx.vars;
     out = ctx.out }
 
@@ -279,8 +287,38 @@ let deallocate_vars ctx1 ctx2 =
     index = ctx1.index;
     block_level = ctx1.block_level;
     labelc = ctx2.labelc;
+    startlb = ctx1.startlb;
+    endlb = ctx1.endlb;
     vars = ctx1.vars;
     out = ctx1.out }
+
+let set_labels lb0 lb1 ctx =
+  { fun_name = ctx.fun_name;
+    index = ctx.index;
+    block_level = ctx.block_level;
+    labelc = ctx.labelc;
+    startlb = Some lb0;
+    endlb = Some lb1;
+    vars = ctx.vars;
+    out = ctx.out }
+
+(* let rec replace_statement lb0 lb1 s =
+   match s with
+   | Decl _ | Exp _ | ReturnVal _
+   | While _ | Do _ | For _
+   | Label _ | Goto _ -> s
+   | Break -> Goto lb1
+   | Continue -> Goto lb0
+   | If ifs ->
+    let tstat = replace_statement lb0 lb1 ifs.tstat in
+    let fstat =
+      (match ifs.fstat with
+       | Some fs -> Some (replace_statement lb0 lb1 fs)
+       | None -> None) in
+    If { cond = ifs.cond; tstat; fstat }
+   | Compound ss -> replace_statements lb0 lb1 ss
+   and replace_statements lb0 lb1 ss =
+   Compound (List.map ss ~f:(replace_statement lb0 lb1)) *)
 
 let rec gen_statement sta ctx =
   match sta with
@@ -317,6 +355,7 @@ let rec gen_statement sta ctx =
     let lb1 = get_new_label ~name:"IFB" ctx in
     ctx
     |> inc_labelc
+    |> set_labels lb0 lb1
     |> gen_exp ifs.cond
     |> cmpl "$0" "%eax"
     |> je lb0
@@ -327,7 +366,56 @@ let rec gen_statement sta ctx =
         | Some fs -> gen_statement fs
         | None -> id)
     |> label lb1
-  | _ -> ctx
+  | While (cond, body) ->
+    let lb0 = get_new_label ~name:"WHA" ctx in
+    let lb1 = get_new_label ~name:"WHB" ctx in
+    ctx
+    |> inc_labelc
+    |> set_labels lb0 lb1
+    |> label lb0
+    |> set_labels lb0 lb1
+    |> gen_exp cond
+    |> cmpl "$0" "%eax"
+    |> je lb1
+    |> gen_statement body
+    |> jmp lb0
+    |> label lb1
+  | Do (cond, body) ->
+    let lb0 = get_new_label ~name:"DOA" ctx in
+    let lb1 = get_new_label ~name:"DOB" ctx in
+    ctx
+    |> inc_labelc
+    |> set_labels lb0 lb1
+    |> label lb0
+    |> gen_statement body
+    |> gen_exp cond
+    |> cmpl "$0" "%eax"
+    |> je lb1
+    |> jmp lb0
+    |> label lb1
+  | For f ->
+    let lb0 = get_new_label ~name:"FORA" ctx in
+    let lb1 = get_new_label ~name:"FORB" ctx in
+    ctx
+    |> inc_labelc
+    |> set_labels lb0 lb1
+    |> gen_exp f.init
+    |> label lb0
+    |> gen_exp f.cond
+    |> je lb1
+    |> gen_statement f.body
+    |> gen_exp f.post
+    |> label lb1
+  | Break ->
+    (match ctx.endlb with
+     | Some l -> jmp l ctx
+     | None -> raise (CodeGenError "not in a loop"))
+  | Continue ->
+    (match ctx.startlb with
+     | Some l -> jmp l ctx
+     | None -> raise (CodeGenError "not in a loop"))
+  | Label l -> label l ctx
+  | Goto l -> jmp l ctx
 
 (* TODO *)
 and gen_statements stas =
@@ -347,18 +435,18 @@ let gen_fun f out =
   | Fun (id, bdy) ->
     { fun_name = id; index= -8;
       block_level = 0; labelc = 0;
-      vars = [];
-      out = out }
+      startlb = None;  endlb = None;
+      vars = []; out = out }
     |> globl id
     |> label id
     |> pushq "%rbp"
     |> movq "%rsp" "%rbp"
     |> gen_statements bdy
 
-let rec gen_prog p =
+let rec gen_prog p out=
   match p with
   | Prog [] -> ();
   | Prog (f :: fs) ->
-    let _ = gen_fun f Out_channel.stdout in
-    Out_channel.newline stdout;
-    gen_prog (Prog fs)
+    let _ = gen_fun f out in
+    Out_channel.newline out;
+    gen_prog (Prog fs) out

@@ -8,7 +8,7 @@
 %token <string> ID
 %token BRACE_OPEN BRACE_CLOSE PAREN_OPEN PAREN_CLOSE
 %token COMMA QUESTION SEMICOLON COLON
-%token INT_KW CHAR_KW RETURN_KW
+%token INT_KW CHAR_KW RETURN_KW GOTO_KW
 %token IF_KW ELSE_KW FOR_KW DO_KW WHILE_KW BREAK_KW CONTINUE_KW
 %token BANG COMPLEMENT
 %token PLUS MINUS NEG_MINUS MULT DIV MOD
@@ -84,6 +84,10 @@ statement:
     { Break }
   | CONTINUE_KW SEMICOLON
     { Continue }
+  | l = ID COLON
+    { Label l }
+  | GOTO_KW l = ID SEMICOLON
+    { Goto l }
   | b = block
     { Compound b }
 ;

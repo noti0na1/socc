@@ -17,6 +17,7 @@
     [("int", INT_KW);
      ("char", CHAR_KW);
      ("return", RETURN_KW);
+     ("goto", GOTO_KW);
      ("if", IF_KW);
      ("else", ELSE_KW);
      ("for", FOR_KW);

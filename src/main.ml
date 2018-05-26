@@ -8,4 +8,4 @@ let _ =
   (* output ast *)
   (* result |> string_of_prog |> print_string;
   Out_channel.newline stdout; *)
-  gen_prog result
+  gen_prog result Out_channel.stdout
