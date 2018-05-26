@@ -11,6 +11,20 @@ type const =
   | String of string
 [@@deriving sexp]
 
+type assign_op =
+  | Eq (* = *)
+  | AddEq (* += *)
+  | SubEq (* -= *)
+  | MultEq (* *= *)
+  | DivEq (* /= *)
+  | ModEq (* %= *)
+  | BitAndEq (* &= *)
+  | BitOrEq (* |= *)
+  | XorEq (* ^= *)
+  | ShiftLEq (* <<= *)
+  | ShiftREq (* >>= *)
+[@@deriving sexp]
+
 type unop = Negate | Pos | Complement | Not
 [@@deriving sexp]
 
@@ -36,7 +50,7 @@ type binop =
 [@@deriving sexp]
 
 type exp =
-  | Assign of string * exp
+  | Assign of assign_op * string * exp
   | Var of string
   | Const of const
   | UnOp of unop * exp

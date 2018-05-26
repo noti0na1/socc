@@ -1,184 +1,10 @@
 open Core
-open Ast
 open Fn
+open Ast
+open Context
+open X64
 
 let (>>) f g a = g (f a)
-
-exception CodeGenError of string
-
-type context = {
-  fun_name : string;
-  block_level : int;
-  labelc : int;
-  startlb : string list;
-  endlb : string list;
-  index : int;
-  vars : (string * (int * int)) list;
-  out : Out_channel.t;
-} [@@deriving fields]
-
-let add_var id ctx =
-  { fun_name = ctx.fun_name;
-    index = ctx.index - 8; (* 64-bit *)
-    block_level = ctx.block_level;
-    labelc = ctx.labelc;
-    startlb = ctx.startlb;
-    endlb = ctx.endlb;
-    vars = (id, (ctx.index, ctx.block_level)) :: ctx.vars;
-    out = ctx.out }
-
-let find_var id ctx =
-  match List.Assoc.find ctx.vars id ~equal:String.equal with
-  | Some (i, _) -> i
-  | None -> raise (CodeGenError ("can't find " ^ id ^ " in the context"))
-
-(* TODO *)
-let get_var_level id ctx =
-  match List.Assoc.find ctx.vars id ~equal:String.equal with
-  | Some (_, l) -> Some l
-  | None -> None
-
-let add_block_level l ctx=
-  { fun_name = ctx.fun_name;
-    index = ctx.index;
-    block_level = ctx.block_level + l;
-    labelc = ctx.labelc;
-    startlb = ctx.startlb;
-    endlb = ctx.endlb;
-    vars = ctx.vars;
-    out = ctx.out }
-
-let inc_block_level = add_block_level 1
-
-let get_new_label ?name ctx =
-  match name with
-  | Some n -> "L" ^ ctx.fun_name ^ n ^ (string_of_int ctx.labelc)
-  | None -> "L" ^ ctx.fun_name ^ (string_of_int ctx.labelc)
-
-let inc_labelc ctx =
-  { fun_name = ctx.fun_name;
-    index = ctx.index;
-    block_level = ctx.block_level;
-    labelc = ctx.labelc + 1;
-    startlb = ctx.startlb;
-    endlb = ctx.endlb;
-    vars = ctx.vars;
-    out = ctx.out }
-
-let cint i =  "$" ^ (string_of_int i)
-
-let off i a =
-  String.concat [string_of_int i; "("; a; ")"]
-
-let my_print_string s ctx = Out_channel.output_string ctx.out s; ctx
-
-let nacmd c =
-  String.concat ["\t";  c;  "\n"] |> my_print_string
-
-let slcmd c a =
-  String.concat ["\t"; c; "\t"; a; "\n"] |> my_print_string
-
-let bicmd c a b =
-  String.concat ["\t"; c; "\t"; a; ", "; b; "\n"] |> my_print_string
-
-let globl f =
-  "\t.globl " ^ f ^ "\n" |> my_print_string
-
-let label f =
-  f ^ ":\n" |> my_print_string
-
-let movl = bicmd "movl"
-
-let movq = bicmd "movq"
-
-(*
-let push = slcmd "push"
-
-let pushl = slcmd "pushl"
-*)
-
-let pushq = slcmd "pushq"
-
-(*
-let pop = slcmd "pop"
-
-let popl = slcmd "popl"
-*)
-
-let popq = slcmd "popq"
-
-let sete = slcmd "sete"
-
-let setne = slcmd "setne"
-
-let setl = slcmd "setl"
-
-let setle = slcmd "setle"
-
-let setg = slcmd "setg"
-
-let setge = slcmd "setge"
-
-let cmpl = bicmd "cmpl"
-
-let addl = bicmd "addl"
-
-let addq = bicmd "addq"
-
-let subl = bicmd "subl"
-
-let subq = bicmd "subq"
-
-let imul = bicmd "imul"
-
-let idivl = slcmd "idivl"
-
-let ands = bicmd "and"
-
-let andb = bicmd "andb"
-
-let ors = bicmd "or"
-
-let orl = bicmd "orl"
-
-let xor = bicmd "xor"
-
-let sall = bicmd "sall"
-
-let sarl = bicmd "sarl"
-
-let neg = slcmd "neg"
-
-let nnot = slcmd "nnot"
-
-let jz = slcmd "jz"
-
-let je = slcmd "je"
-
-let jmp = slcmd "jmp"
-
-let nop = nacmd "nop"
-
-(*
-  enter n,0 is equivalent to:
-  push  %ebp
-  mov   %esp, %ebp
-  sub   $n, %esp   # allocate space on the stack. Omit if n=0
-  enter is very slow and compilers don't use it
-*)
-let enter = bicmd "enter"
-
-(*
-  leave is equivalent to:
-  mov   %ebp, %esp
-  pop   %ebp
-  If esp is already equal to ebp, it's most efficient to just pop ebp.
-*)
-let leave = nacmd "leave"
-
-let ret = nacmd "ret"
-
-let retq = nacmd "retq"
 
 let gen_const c =
   match c with
@@ -245,7 +71,7 @@ let gen_fun_end =
 
 let rec gen_exp e (ctx : context) =
   match e with
-  | Assign (var, vexp) ->
+  | Assign (_, var, vexp) -> (* TODO *)
     let ctx0 = gen_exp vexp ctx in
     let i = find_var var ctx0 in
     movl "%eax" (off i "%rbp") ctx0
@@ -302,39 +128,7 @@ let gen_decl_exp de ctx =
 
 let deallocate_vars ctx1 ctx2 =
   ignore @@ addq (cint (ctx1.index - ctx2.index)) "%rsp" ctx2;
-  { fun_name = ctx1.fun_name;
-    index = ctx1.index;
-    block_level = ctx1.block_level;
-    labelc = ctx2.labelc;
-    startlb = ctx1.startlb;
-    endlb = ctx1.endlb;
-    vars = ctx1.vars;
-    out = ctx1.out }
-
-let set_labels lb0 lb1 ctx =
-  (* print_string "!set"; *)
-  { fun_name = ctx.fun_name;
-    index = ctx.index;
-    block_level = ctx.block_level;
-    labelc = ctx.labelc;
-    startlb = lb0 :: ctx.startlb;
-    endlb = lb1:: ctx.endlb;
-    vars = ctx.vars;
-    out = ctx.out }
-
-let unset_labels ctx =
-  (* print_string "!unset"; *)
-  match ctx.startlb, ctx.endlb with
-  | (_ :: sls), (_ :: els) ->
-    { fun_name = ctx.fun_name;
-      index = ctx.index;
-      block_level = ctx.block_level;
-      labelc = ctx.labelc;
-      startlb = sls;
-      endlb = els;
-      vars = ctx.vars;
-      out = ctx.out }
-  | _ -> raise (CodeGenError "unable to unset labels")
+  keep_labelc ctx1 ctx2
 
 (* let rec replace_statement lb0 lb1 s =
    match s with
@@ -413,10 +207,8 @@ let rec gen_statement sta ctx =
     |> jmp lb0
     |> label lb1
     |> unset_labels
-  (* TODO *)
   | For f ->
     gen_for (gen_exp f.init) f.cond f.post f.body ctx
-  (* TODO *)
   | ForDecl f ->
     gen_for (gen_decl_exp f.init) f.cond f.post f.body ctx
   | Break ->
