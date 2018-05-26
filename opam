@@ -1,0 +1,19 @@
+opam-version: "1.2"
+name: "occ"
+version: "0.1.0"
+maintainer: "noti0na1 <i@notnl.com>"
+authors: "noti0na1 <i@notnl.com>"
+homepage: "https://github.com/noti0na1/occ"
+bug-reports: "https://github.com/noti0na1/occ/issues"
+license: "MIT"
+dev-repo: "https://github.com/noti0na1/occ"
+build: [
+  [make]
+]
+install: [make "native"]
+remove: ["ocamlfind" "remove" "occ"]
+depends: [
+  "ocamlfind" {build}
+  "core"
+  "ppx_jane"
+]
