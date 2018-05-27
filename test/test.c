@@ -1,6 +1,9 @@
+
+int f(int i, int j) {
+    return i * j;
+}
+
 int main() {
-    int a = 1;
-    for (int i = 1; i <= 5; i = i + 1)
-        a = a * i;
-    return a;
+    int a = 2 + 3;
+    return f(f(1, a), f(3, 4));
 }

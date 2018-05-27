@@ -56,6 +56,7 @@ type exp =
   | UnOp of unop * exp
   | BinOp of binop * exp * exp
   | Condition of exp * exp * exp
+  | Call of string * exp list
   | Nop
 [@@deriving sexp]
 

@@ -93,6 +93,8 @@ let je = slcmd "je"
 
 let jmp = slcmd "jmp"
 
+let call = slcmd "call"
+
 let nop = nacmd "nop"
 
 (*

@@ -105,6 +105,8 @@ let rec gen_exp e (ctx : context) =
     |> label lb0
     |> gen_exp fexp
     |> label lb1
+  | Call (f, _) -> (* TODO *)
+    call f ctx
   | Nop -> ctx
 
 let gen_decl_exp de ctx =

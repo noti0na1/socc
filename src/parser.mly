@@ -110,16 +110,26 @@ if_fstat:
 
 exp:
   | { Nop }
-  | i = INT { Const (Int i) }
-  | PAREN_OPEN e = exp PAREN_CLOSE { e }
-  | e1 = exp op = binop e2 = exp { BinOp (op, e1, e2) }
-  | COMPLEMENT e = exp { UnOp (Complement, e) }
-  | BANG e = exp { UnOp (Not, e) }
-  | MINUS e = exp %prec NEG_MINUS { UnOp (Negate, e) }
-  | id = ID EQ e = exp { Assign (Eq, id, e) }
-  | id = ID { Var id }
+  | i = INT
+    { Const (Int i) }
+  | PAREN_OPEN e = exp PAREN_CLOSE
+    { e }
+  | e1 = exp op = binop e2 = exp
+    { BinOp (op, e1, e2) }
+  | COMPLEMENT e = exp
+    { UnOp (Complement, e) }
+  | BANG e = exp
+    { UnOp (Not, e) }
+  | MINUS e = exp %prec NEG_MINUS
+    { UnOp (Negate, e) }
+  | id = ID EQ e = exp
+    { Assign (Eq, id, e) }
+  | id = ID
+    { Var id }
   | cond = exp QUESTION texp = exp COLON fexp = exp
     { Condition (cond, texp, fexp) }
+  | id = ID PAREN_OPEN PAREN_CLOSE
+    { Call (id, []) }
 ;
 
 %inline binop:
