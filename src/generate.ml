@@ -84,6 +84,9 @@ let assign_op_map = function
   | AssignEq ->
     raise (CodeGenError "cannot map assign_op: AssignEq")
 
+let arg_regs =
+  Array.of_list ["%rdi"; "%rsi"; "%rdx"; "%rcx"; "%r8"; "%r9"]
+
 let rec gen_exp e (ctx : context) =
   match e with
   | Assign (AssignEq, var, vexp) ->
@@ -123,11 +126,22 @@ let rec gen_exp e (ctx : context) =
     |> label lb0
     |> gen_exp fexp
     |> label lb1
-  | Call (f, _) -> (* TODO *)
-    call f ctx
-  | Nop -> ctx
+  | Call (f, args) -> (* TODO *)
+    gen_args 0 args ctx
+    |> call f
 
-let gen_decl_exp de ctx =
+and gen_args i args =
+  match args with
+  | arg :: args ->
+    if i + 1 >= Array.length arg_regs
+    then raise (CodeGenError "to many args")
+    else
+      gen_exp arg
+      >> movq "%rax" arg_regs.(i)
+      >> gen_args (i + 1) args
+  | [] -> id
+
+let gen_decl_exp (de : decl_exp) ctx =
   (* TODO *)
   (* check if var has been define in the same block *)
   (match get_var_level de.name ctx with
@@ -241,6 +255,7 @@ let rec gen_statement sta ctx =
      | [] -> raise (CodeGenError "not in a loop"))
   | Label l -> label l ctx
   | Goto l -> jmp l ctx
+  | Nop -> ctx
 
 and gen_for gen_init cond post body ctx =
   let lb0 = get_new_label ~name:"FORA" ctx in
@@ -276,18 +291,30 @@ and gen_statements stas =
     gen_statements ss
   | [] -> id
 
-let gen_fun f out =
-  match f with
-  | Fun (id, bdy) ->
-    { fun_name = id; index= -8;
-      block_level = 0; labelc = 0;
-      startlb = [];  endlb = [];
-      vars = []; out = out }
-    |> globl id
-    |> label id
-    |> pushq "%rbp"
-    |> movq "%rsp" "%rbp"
-    |> gen_statements bdy
+let rec init_params i params ctx =
+  match params with
+  | (_, VoidType) :: _ -> ctx
+  | (None, _) :: ps -> init_params (i + 1) ps ctx
+  | (Some v, _) :: ps ->
+    ctx
+    (* |> movq arg_regs.(i) "%rax" *)
+    |> pushq arg_regs.(i)
+    |> add_var v
+    |> init_params (i + 1) ps
+  | _ -> ctx
+
+let gen_fun (f : fun_decl) out =
+  (* TODO *)
+  { fun_name = f.name ; index= -8;
+    block_level = 0; labelc = 0;
+    startlb = [];  endlb = [];
+    vars = []; out = out }
+  |> globl f.name
+  |> label f.name
+  |> pushq "%rbp"
+  |> movq "%rsp" "%rbp"
+  |> init_params 0 f.params
+  |> gen_statements f.body
 
 let rec gen_prog p out=
   match p with

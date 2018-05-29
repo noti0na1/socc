@@ -43,6 +43,7 @@
 %%
 
 type_def:
+  | VOID_KW { VoidType }
   | INT_KW { IntType }
   | CHAR_KW { CharType }
   | FLOAT_KW { FloatType }
@@ -55,10 +56,27 @@ program:
 ;
 
 fun_decl:
-  INT_KW id = ID PAREN_OPEN PAREN_CLOSE
-  b = block
-  { Fun (id, b) }
+  ftype = type_def id = ID
+  PAREN_OPEN params = params PAREN_CLOSE
+  body = block
+  { { name = id;
+      fun_type = ftype;
+      params;
+      body; } }
 ;
+
+params:
+  | { [] }
+  | t = type_def id = option(ID)
+    { [(id, t)] }
+  | t = type_def id = option(ID) COMMA ps = params
+    { (id, t) :: ps }
+
+args:
+  | { [] }
+  | e = exp { [e] }
+  | e = exp COMMA es = args
+    { e :: es }
 
 block:
   | BRACE_OPEN sts = statements BRACE_CLOSE
@@ -102,6 +120,8 @@ statement:
     { Label l }
   | GOTO_KW l = ID SEMICOLON
     { Goto l }
+  | SEMICOLON
+    { Nop }
   | b = block
     { Compound b }
 ;
@@ -119,7 +139,6 @@ if_fstat:
   | ELSE_KW fstat = statement { Some fstat }
 
 exp:
-  | { Nop }
   | i = INT
     { Const (Int i) }
   | PAREN_OPEN e = exp PAREN_CLOSE
@@ -138,8 +157,8 @@ exp:
     { Var id }
   | cond = exp QUESTION texp = exp COLON fexp = exp
     { Condition (cond, texp, fexp) }
-  | id = ID PAREN_OPEN PAREN_CLOSE
-    { Call (id, []) }
+  | id = ID PAREN_OPEN args = args PAREN_CLOSE
+    { Call (id, args) }
 ;
 
 %inline binop:

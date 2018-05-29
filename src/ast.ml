@@ -1,6 +1,7 @@
 open Core
 
 type type_def =
+  | VoidType
   | IntType
   | CharType
   | FloatType
@@ -63,7 +64,6 @@ type exp =
   | BinOp of binop * exp * exp
   | Condition of exp * exp * exp
   | Call of string * exp list
-  | Nop
 [@@deriving sexp]
 
 type decl_exp = {
@@ -83,6 +83,7 @@ and statement =
       tstat : statement;
       fstat : statement option;
     }
+    (* TODO: option inti, cond, post *)
   | For of {
       init : exp;
       cond : exp;
@@ -100,9 +101,15 @@ and statement =
   | Break | Continue
   | Label of string
   | Goto of string
+  | Nop
 [@@deriving sexp]
 
-type fun_decl = Fun of string * block
+type fun_decl = {
+  name : string;
+  fun_type : type_def;
+  params : (string option * type_def) list;
+  body : block;
+}
 [@@deriving sexp]
 
 type prog = Prog of fun_decl list
