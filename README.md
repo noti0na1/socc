@@ -22,7 +22,7 @@ make
 
 The executable file is `main.native`
 
-## Use
+## Usage
 
 ```bash
 # use gcc to preprocess the source code
@@ -35,53 +35,87 @@ gcc test.s -o test
 ## Example
 
 ```c
+int factorial(int n) {
+    if (n < 0) return 0;
+    int c = 1;
+    for (int i = 1; i <= n; i += 1) {
+        c *= i;
+    }
+    return c;
+}
+
 int main() {
-    int a = 1;
-    for (int i = 1; i <= 5; i = i + 1)
-        a = a * i;
-    return a;
+    return factorial(5);
 }
 ```
 
 ```assembly
-	.globl main
-main:
+	.globl factorial
+factorial:
 	pushq	%rbp
 	movq	%rsp, %rbp
+	pushq	%rdi
+	movl	-8(%rbp), %eax
+	pushq	%rax
+	movl	$0, %eax
+	movl	%eax, %ecx
+	popq	%rax
+	cmpl	%ecx, %eax
+	movl	$0, %eax
+	setl	%al
+	cmpl	$0, %eax
+	je	LfactorialIFA0
+	movl	$0, %eax
+	leave
+	ret
+	jmp	LfactorialIFB0
+LfactorialIFA0:
+LfactorialIFB0:
 	movl	$1, %eax
 	pushq	%rax
 	movl	$1, %eax
 	pushq	%rax
-LmainFORA0:
-	movl	-16(%rbp), %eax
+LfactorialFORA1:
+	movl	-24(%rbp), %eax
 	pushq	%rax
-	movl	$5, %eax
+	movl	-8(%rbp), %eax
 	movl	%eax, %ecx
 	popq	%rax
 	cmpl	%ecx, %eax
 	movl	$0, %eax
 	setle	%al
 	cmpl	$0, %eax
-	je		LmainFORC0
-	movl	-8(%rbp), %eax
-	pushq	%rax
+	je	LfactorialFORC1
 	movl	-16(%rbp), %eax
+	pushq	%rax
+	movl	-24(%rbp), %eax
 	movl	%eax, %ecx
 	popq	%rax
 	imul	%ecx, %eax
-	movl	%eax, -8(%rbp)
-LmainFORB0:
-	movl	-16(%rbp), %eax
+	movl	%eax, -16(%rbp)
+	addq	$0, %rsp
+LfactorialFORB1:
+	movl	-24(%rbp), %eax
 	pushq	%rax
 	movl	$1, %eax
 	movl	%eax, %ecx
 	popq	%rax
 	addl	%ecx, %eax
-	movl	%eax, -16(%rbp)
-	jmp		LmainFORA0
-LmainFORC0:
+	movl	%eax, -24(%rbp)
+	jmp	LfactorialFORA1
+LfactorialFORC1:
 	addq	$8, %rsp
-	movl	-8(%rbp), %eax
+	movl	-16(%rbp), %eax
+	leave
+	ret
+
+	.globl main
+main:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	movl	$5, %eax
+	movq	%rax, %rdi
+	call	factorial
 	leave
 	ret
 ```
@@ -92,8 +126,11 @@ LmainFORC0:
     - `ast.ml` abstract syntax tree
     - `parser.mly` parser
     - `lexer.mll` lexer
-    - `gen.ml` code generator
-    - `main.ml` program start
+	- `context.ml`
+	- `x64.ml` X64 assembly
+    - `generate.ml` code generator
+	- `util.ml` utils
+    - `main.ml` program entry
 - `occ/test` some test files
 
 ## Note
@@ -104,13 +141,20 @@ The output assembly is for x64 platform
 
 ## TODO
 
-- [ ] implement more assignments += -= ...
-- [ ] support comment
-- [ ] implement function call
-- [ ] implement struct
+### Short Term
+
+- [ ] implement `++` and `--`
+- [ ] optimize stack usage
+- [ ] support comments
 - [ ] implement pointer
-- [ ] improve parser more
+- [ ] implement struct
+- [ ] improve parser further more
+
+### Long Term
+
 - [ ] add error, warning print ...
+- [ ] add check pass
+- [ ] add intermediate lang
 
 ## Licence
 

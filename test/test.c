@@ -1,12 +1,12 @@
-int f(int a, int b, int c) {
-    int d = a + b * c;
-    return d + 1;
+int factorial(int n) {
+    if (n < 0) return 0;
+    int c = 1;
+    for (int i = 1; i <= n; i += 1) {
+        c *= i;
+    }
+    return c;
 }
 
 int main() {
-    int a;
-    a = a * a;
-    int b = 2;
-    int c = f(0, a + 1, b + 2);
-    return c ;
+    return factorial(5);
 }
