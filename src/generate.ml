@@ -11,6 +11,7 @@ let gen_const c =
   | Int i -> movl ("$" ^ string_of_int i) "%eax"
   | Char c -> movl ("$" ^ string_of_int (Char.to_int c)) "%eax"
   | String s -> my_print_string s
+  | _ -> id (* TODO *)
 
 let gen_unop uop  =
   match uop with
@@ -69,12 +70,29 @@ let gen_fun_end =
      popq "%rbp"; *)
   leave >> ret
 
+let assign_op_map = function
+  | AddEq -> Add
+  | SubEq -> Sub
+  | MultEq -> Mult
+  | DivEq -> Div
+  | ModEq -> Mod
+  | BitAndEq -> BitAnd
+  | BitOrEq -> BitOr
+  | XorEq -> Xor
+  | ShiftLEq -> ShiftL
+  | ShiftREq -> ShiftR
+  | AssignEq ->
+    raise (CodeGenError "cannot map assign_op: AssignEq")
+
 let rec gen_exp e (ctx : context) =
   match e with
-  | Assign (_, var, vexp) -> (* TODO *)
+  | Assign (AssignEq, var, vexp) ->
     let ctx0 = gen_exp vexp ctx in
     let i = find_var var ctx0 in
     movl "%eax" (off i "%rbp") ctx0
+  | Assign (op, var, vexp) ->
+    let bexp = (BinOp (assign_op_map op, Var var, vexp)) in
+    gen_exp (Assign (AssignEq, var, bexp)) ctx
   | Var var ->
     let i = find_var var ctx in
     movl (off i "%rbp") "%eax" ctx

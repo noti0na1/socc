@@ -8,15 +8,19 @@
 %token <string> ID
 %token BRACE_OPEN BRACE_CLOSE PAREN_OPEN PAREN_CLOSE
 %token COMMA QUESTION SEMICOLON COLON
-%token INT_KW CHAR_KW RETURN_KW GOTO_KW
-%token IF_KW ELSE_KW FOR_KW DO_KW WHILE_KW BREAK_KW CONTINUE_KW
+%token VOID_KW INT_KW CHAR_KW LONG_KW UNSIGNED_KW FLOAT_KW DOUBLE_KW
+%token STRUCT_KW CONST_KW STATIC_KW RETURN_KW GOTO_KW
+%token IF_KW ELSE_KW SWITCH_KW FOR_KW DO_KW WHILE_KW BREAK_KW CONTINUE_KW
 %token BANG COMPLEMENT
 %token PLUS MINUS NEG_MINUS MULT DIV MOD
+%token PLUS_EQ MINUS_EQ MULT_EQ DIV_EQ MOD_EQ
+%token BIT_AND_EQ BIT_OR_EQ XOR_EQ SHIFT_LEFT_EQ SHIFT_RIGHT_EQ
 %token EQ DOUBLE_EQ NEQ LT LE GT GE AND OR
 %token BIT_AND BIT_OR XOR SHIFT_LEFT SHIFT_RIGHT
 %token EOF
 
-%right EQ
+%left COMMA
+%right EQ PLUS_EQ MINUS_EQ MULT_EQ DIV_EQ MOD_EQ BIT_AND_EQ BIT_OR_EQ XOR_EQ SHIFT_LEFT_EQ SHIFT_RIGHT_EQ
 %right QUESTION COLON
 %left OR
 %left AND
@@ -37,6 +41,12 @@
 %start program
 
 %%
+
+type_def:
+  | INT_KW { IntType }
+  | CHAR_KW { CharType }
+  | FLOAT_KW { FloatType }
+  | DOUBLE_KW { DoubleType }
 
 program:
   | f = fun_decl p = program
@@ -122,8 +132,8 @@ exp:
     { UnOp (Not, e) }
   | MINUS e = exp %prec NEG_MINUS
     { UnOp (Negate, e) }
-  | id = ID EQ e = exp
-    { Assign (Eq, id, e) }
+  | id = ID aop = assign_op e = exp
+    { Assign (aop, id, e) }
   | id = ID
     { Var id }
   | cond = exp QUESTION texp = exp COLON fexp = exp
@@ -153,4 +163,16 @@ exp:
   | SHIFT_RIGHT { ShiftR }
 ;
 
+%inline assign_op:
+  | EQ { AssignEq }
+  | PLUS_EQ { AddEq }
+  | MINUS_EQ { SubEq }
+  | MULT_EQ { MultEq }
+  | DIV_EQ { DivEq }
+  | MOD_EQ { ModEq }
+  | BIT_AND_EQ { BitAndEq }
+  | BIT_OR_EQ { BitOrEq }
+  | XOR_EQ { XorEq }
+  | SHIFT_LEFT_EQ { ShiftLEq }
+  | SHIFT_RIGHT_EQ { ShiftREq }
 %%

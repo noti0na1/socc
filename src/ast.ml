@@ -3,16 +3,22 @@ open Core
 type type_def =
   | IntType
   | CharType
+  | FloatType
+  | DoubleType
+  | ArrayType of type_def
+  | ConstType of type_def
+  | PointerType of type_def
 [@@deriving sexp]
 
 type const =
   | Int of int
   | Char of char
+  | Float of float
   | String of string
 [@@deriving sexp]
 
 type assign_op =
-  | Eq (* = *)
+  | AssignEq (* = *)
   | AddEq (* += *)
   | SubEq (* -= *)
   | MultEq (* *= *)
