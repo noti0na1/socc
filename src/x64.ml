@@ -17,6 +17,9 @@ let slcmd c a =
 let bicmd c a b =
   String.concat ["\t"; c; "\t"; a; ", "; b; "\n"] |> my_print_string
 
+let dot_string s =
+  "\t.string \"" ^ s ^ "\"\n" |> my_print_string
+
 let globl f =
   "\t.globl " ^ f ^ "\n" |> my_print_string
 

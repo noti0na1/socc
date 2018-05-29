@@ -1,3 +1,18 @@
+.LC0:
+	.string "%d\n"
+	.globl println
+println:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	subq	$16, %rsp
+	movl	%edi, -4(%rbp)
+	movl	-4(%rbp), %eax
+	movl	%eax, %esi
+	movl	$.LC0, %edi
+	movl	$0, %eax
+	call	printf
+	leave
+	ret
 	.globl factorial
 factorial:
 	pushq	%rbp
@@ -34,6 +49,9 @@ LfactorialFORA1:
 	setle	%al
 	cmpl	$0, %eax
 	je	LfactorialFORC1
+	movl	-24(%rbp), %eax
+	movq	%rax, %rdi
+	call	println
 	movl	-16(%rbp), %eax
 	pushq	%rax
 	movl	-24(%rbp), %eax
@@ -61,9 +79,14 @@ LfactorialFORC1:
 main:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	movl	$5, %eax
+	movl	$10, %eax
 	movq	%rax, %rdi
 	call	factorial
+	pushq	%rax
+	movl	-8(%rbp), %eax
+	movq	%rax, %rdi
+	call	println
+	movl	$0, %eax
 	leave
 	ret
 

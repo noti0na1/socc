@@ -1,48 +1,64 @@
 	.file	"test.c"
 	.text
-	.globl	f
-	.type	f, @function
-f:
+	.section	.rodata
+.LC0:
+	.string	"%d\n"
+	.text
+	.globl	println
+	.type	println, @function
+println:
+	pushq	%rbp
+	movq	%rsp, %rbp
+	subq	$16, %rsp
+	movl	%edi, -4(%rbp)
+	movl	-4(%rbp), %eax
+	movl	%eax, %esi
+	movl	$.LC0, %edi
+	movl	$0, %eax
+	call	printf
+	nop
+	leave
+	ret
+	.size	println, .-println
+	.globl	factorial
+	.type	factorial, @function
+factorial:
 	pushq	%rbp
 	movq	%rsp, %rbp
 	movl	%edi, -20(%rbp)
-	movl	%esi, -24(%rbp)
-	movl	%edx, -28(%rbp)
-	movl	-24(%rbp), %eax
-	imull	-28(%rbp), %eax
-	movl	%eax, %edx
-	movl	-20(%rbp), %eax
-	addl	%edx, %eax
-	movl	%eax, -4(%rbp)
+	cmpl	$0, -20(%rbp)
+	jns	.L3
+	movl	$0, %eax
+	jmp	.L4
+.L3:
+	movl	$1, -4(%rbp)
+	movl	$1, -8(%rbp)
+	jmp	.L5
+.L6:
 	movl	-4(%rbp), %eax
-	addl	$1, %eax
+	imull	-8(%rbp), %eax
+	movl	%eax, -4(%rbp)
+	addl	$1, -8(%rbp)
+.L5:
+	movl	-8(%rbp), %eax
+	cmpl	-20(%rbp), %eax
+	jle	.L6
+	movl	-4(%rbp), %eax
+.L4:
 	popq	%rbp
 	ret
-	.size	f, .-f
+	.size	factorial, .-factorial
 	.globl	main
 	.type	main, @function
 main:
 	pushq	%rbp
 	movq	%rsp, %rbp
 	subq	$16, %rsp
+	movl	$1, -4(%rbp)
 	movl	-4(%rbp), %eax
-	imull	-4(%rbp), %eax
-	movl	%eax, -4(%rbp)
-	movl	$2, -8(%rbp)
-	movl	-8(%rbp), %eax
-	movl	%eax, %edx
-	shrl	$31, %edx
-	addl	%edx, %eax
-	sarl	%eax
-	movl	%eax, %edx
-	movl	-4(%rbp), %eax
-	subl	$1, %eax
-	movl	%eax, %esi
-	movl	$0, %edi
-	call	f
-	movl	%eax, -12(%rbp)
-	movl	-12(%rbp), %eax
-	addl	$1, %eax
+	movl	%eax, %edi
+	call	println
+	movl	$0, %eax
 	leave
 	ret
 	.size	main, .-main

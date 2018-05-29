@@ -316,7 +316,14 @@ let gen_fun (f : fun_decl) out =
   |> init_params 0 f.params
   |> gen_statements f.body
 
-let rec gen_prog p out=
+let gen_temp_println out =
+  { fun_name = "println" ; index= -8;
+    block_level = 0; labelc = 0;
+    startlb = [];  endlb = [];
+    vars = []; out = out; }
+  |> Print.gen_print
+
+let rec gen_prog p out =
   match p with
   | Prog [] -> ();
   | Prog (f :: fs) ->

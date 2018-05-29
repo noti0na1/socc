@@ -21,3 +21,6 @@ setup.log
 
 # Merlin configuring file for Vim and Emacs
 .merlin
+
+# test file
+test/test
