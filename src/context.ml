@@ -1,43 +1,51 @@
 open Core
+open Ast
 
 exception CodeGenError of string
 
+type context_var = {
+  id : string;
+  var_t : type_def;
+  loc : int;
+  scope_level : int;
+}
+
 type context = {
   fun_name : string;
-  block_level : int;
+  scope_levelc : int;
   labelc : int;
   startlb : string list;
   endlb : string list;
   index : int;
-  vars : (string * (int * int)) list;
+  vars : context_var list;
   out : Out_channel.t;
 }
 
-let add_var id ctx =
+let add_var id var_t ctx =
   { fun_name = ctx.fun_name;
     index = ctx.index - 8; (* 64-bit *)
-    block_level = ctx.block_level;
+    scope_levelc = ctx.scope_levelc;
     labelc = ctx.labelc;
     startlb = ctx.startlb;
     endlb = ctx.endlb;
-    vars = (id, (ctx.index, ctx.block_level)) :: ctx.vars;
+    vars = {id; var_t; loc=ctx.index; scope_level = ctx.scope_levelc} :: ctx.vars;
     out = ctx.out }
 
 let find_var id ctx =
-  match List.Assoc.find ctx.vars id ~equal:String.equal with
-  | Some (i, _) -> i
+  match List.find ctx.vars (fun v -> String.equal id v.id) with
+  | Some v -> v
   | None -> raise (CodeGenError ("can't find " ^ id ^ " in the context"))
 
 (* TODO *)
 let get_var_level id ctx =
-  match List.Assoc.find ctx.vars id ~equal:String.equal with
-  | Some (_, l) -> Some l
+  match List.find ctx.vars (fun v -> String.equal id v.id) with
+  | Some v -> Some v.scope_level
   | None -> None
 
 let add_block_level l ctx=
   { fun_name = ctx.fun_name;
     index = ctx.index;
-    block_level = ctx.block_level + l;
+    scope_levelc = ctx.scope_levelc + l;
     labelc = ctx.labelc;
     startlb = ctx.startlb;
     endlb = ctx.endlb;
@@ -54,7 +62,7 @@ let get_new_label ?name ctx =
 let inc_labelc ctx =
   { fun_name = ctx.fun_name;
     index = ctx.index;
-    block_level = ctx.block_level;
+    scope_levelc = ctx.scope_levelc;
     labelc = ctx.labelc + 1;
     startlb = ctx.startlb;
     endlb = ctx.endlb;
@@ -64,7 +72,7 @@ let inc_labelc ctx =
 let keep_labelc ctx1 ctx2 =
   { fun_name = ctx1.fun_name;
     index = ctx1.index;
-    block_level = ctx1.block_level;
+    scope_levelc = ctx1.scope_levelc;
     labelc = ctx2.labelc;
     startlb = ctx1.startlb;
     endlb = ctx1.endlb;
@@ -75,7 +83,7 @@ let set_labels lb0 lb1 ctx =
   (* print_string "!set"; *)
   { fun_name = ctx.fun_name;
     index = ctx.index;
-    block_level = ctx.block_level;
+    scope_levelc = ctx.scope_levelc;
     labelc = ctx.labelc;
     startlb = lb0 :: ctx.startlb;
     endlb = lb1:: ctx.endlb;
@@ -88,7 +96,7 @@ let unset_labels ctx =
   | (_ :: sls), (_ :: els) ->
     { fun_name = ctx.fun_name;
       index = ctx.index;
-      block_level = ctx.block_level;
+      scope_levelc = ctx.scope_levelc;
       labelc = ctx.labelc;
       startlb = sls;
       endlb = els;

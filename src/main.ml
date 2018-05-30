@@ -8,5 +8,5 @@ let _ =
   (* output ast *)
   (* result |> string_of_prog |> print_string;
      Out_channel.newline stdout; *)
-  ignore (gen_temp_println Out_channel.stdout);
+  ignore (gen_temp_lib Out_channel.stdout);
   gen_prog result Out_channel.stdout

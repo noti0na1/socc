@@ -26,6 +26,7 @@
      ("struct", STRUCT_KW);
      ("const", CONST_KW);
      ("static", STATIC_KW);
+     ("sizeof", SIZEOF_KW);
      ("return", RETURN_KW);
      ("goto", GOTO_KW);
      ("if", IF_KW);
@@ -56,6 +57,8 @@ rule token = parse
   | '}' { BRACE_CLOSE }
   | '(' { PAREN_OPEN }
   | ')' { PAREN_CLOSE }
+  | '[' { BRACKET_OPEN }
+  | ']' { BRACKET_CLOSE }
   | ',' { COMMA }
   | '?' { QUESTION }
   | ';' { SEMICOLON }
@@ -91,6 +94,7 @@ rule token = parse
   | "^=" { XOR_EQ }
   | "<<=" { SHIFT_LEFT_EQ }
   | ">>=" { SHIFT_RIGHT_EQ }
+  | "->" { ARROW }
   | digit+ as lxm { INT (int_of_string lxm) }
   | id as id { find_token id }
   | _ as c

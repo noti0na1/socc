@@ -3,10 +3,13 @@ open Core
 type type_def =
   | VoidType
   | IntType
+  | ShortIntType
+  | LongIntType
+  | LongLongIntType
   | CharType
   | FloatType
   | DoubleType
-  | ArrayType of type_def
+  | ArrayType of int * type_def
   | ConstType of type_def
   | PointerType of type_def
 [@@deriving sexp]
@@ -57,13 +60,17 @@ type binop =
 [@@deriving sexp]
 
 type exp =
-  | Assign of assign_op * string * exp
+  | Assign of assign_op * exp * exp
   | Var of string
   | Const of const
   | UnOp of unop * exp
   | BinOp of binop * exp * exp
   | Condition of exp * exp * exp
   | Call of string * exp list
+  | AddressOf of exp
+  | Dereference of exp
+  | SizeofType of type_def
+  | SizeofExp of exp
 [@@deriving sexp]
 
 type decl_exp = {

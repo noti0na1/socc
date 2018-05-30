@@ -2,90 +2,80 @@
 	.string "%d\n"
 	.globl println
 println:
-	pushq	%rbp
-	movq	%rsp, %rbp
-	subq	$16, %rsp
-	movl	%edi, -4(%rbp)
-	movl	-4(%rbp), %eax
-	movl	%eax, %esi
+	movq	%rdi, %rsi
+	movq	$0, %rax
 	movl	$.LC0, %edi
-	movl	$0, %eax
-	call	printf
-	leave
+	jmp	printf
+.LC1:
+	.string "%d"
+	.globl readi
+readi:
+	subq	$24, %rsp
+	movl	$.LC1, %edi
+	movq	$0, %rax
+	leaq	12(%rsp), %rsi
+	movl	$0, 12(%rsp)
+	call	__isoc99_scanf
+	movl	12(%rsp), %eax
+	addq	$24, %rsp
 	ret
-	.globl factorial
-factorial:
+	.globl main
+main:
 	pushq	%rbp
 	movq	%rsp, %rbp
-	pushq	%rdi
-	movl	-8(%rbp), %eax
+	movq	$4, %rax
+	movq	%rax, %rdi
+	call	malloc
+	pushq	%rax
+	call	readi
 	pushq	%rax
 	movl	$0, %eax
-	movl	%eax, %ecx
+	pushq	%rax
+LmainFORA0:
+	movq	-24(%rbp), %rax
+	pushq	%rax
+	movq	-16(%rbp), %rax
+	movq	%rax, %rcx
 	popq	%rax
 	cmpl	%ecx, %eax
 	movl	$0, %eax
 	setl	%al
 	cmpl	$0, %eax
-	je	LfactorialIFA0
-	movl	$0, %eax
-	leave
-	ret
-	jmp	LfactorialIFB0
-LfactorialIFA0:
-LfactorialIFB0:
-	movl	$1, %eax
-	pushq	%rax
-	movl	$1, %eax
-	pushq	%rax
-LfactorialFORA1:
-	movl	-24(%rbp), %eax
-	pushq	%rax
-	movl	-8(%rbp), %eax
-	movl	%eax, %ecx
-	popq	%rax
-	cmpl	%ecx, %eax
-	movl	$0, %eax
-	setle	%al
-	cmpl	$0, %eax
-	je	LfactorialFORC1
-	movl	-24(%rbp), %eax
+	je	LmainFORC0
+	movq	-24(%rbp), %rax
 	movq	%rax, %rdi
 	call	println
-	movl	-16(%rbp), %eax
+	movq	-8(%rbp), %rax
 	pushq	%rax
-	movl	-24(%rbp), %eax
-	movl	%eax, %ecx
-	popq	%rax
-	imul	%ecx, %eax
-	movl	%eax, -16(%rbp)
-	addq	$0, %rsp
-LfactorialFORB1:
-	movl	-24(%rbp), %eax
+	movq	-8(%rbp), %rax
+	movq	(%rax), %rax
 	pushq	%rax
-	movl	$1, %eax
-	movl	%eax, %ecx
+	movq	-24(%rbp), %rax
+	movq	%rax, %rcx
 	popq	%rax
 	addl	%ecx, %eax
-	movl	%eax, -24(%rbp)
-	jmp	LfactorialFORA1
-LfactorialFORC1:
-	addq	$8, %rsp
-	movl	-16(%rbp), %eax
-	leave
-	ret
-
-	.globl main
-main:
-	pushq	%rbp
-	movq	%rsp, %rbp
-	movl	$10, %eax
-	movq	%rax, %rdi
-	call	factorial
+	movq	%rax, %rcx
+	popq	%rax
+	movl	%ecx, (%rax)
+	addq	$0, %rsp
+LmainFORB0:
+	movq	-24(%rbp), %rax
 	pushq	%rax
-	movl	-8(%rbp), %eax
+	movl	$2, %eax
+	movq	%rax, %rcx
+	popq	%rax
+	addl	%ecx, %eax
+	movq	%rax, -24(%rbp)
+	jmp	LmainFORA0
+LmainFORC0:
+	addq	$8, %rsp
+	movq	-8(%rbp), %rax
+	movq	(%rax), %rax
 	movq	%rax, %rdi
 	call	println
+	movq	-8(%rbp), %rax
+	movq	%rax, %rdi
+	call	free
 	movl	$0, %eax
 	leave
 	ret

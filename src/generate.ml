@@ -1,5 +1,4 @@
 open Core
-open Fn
 open Ast
 open Context
 open X64
@@ -9,19 +8,20 @@ let (>>) f g a = g (f a)
 let gen_const c =
   match c with
   | Int i -> movl ("$" ^ string_of_int i) "%eax"
-  | Char c -> movl ("$" ^ string_of_int (Char.to_int c)) "%eax"
+  | Char c -> movb ("$" ^ string_of_int (Char.to_int c)) "%al"
   | String s -> my_print_string s
-  | _ -> id (* TODO *)
+  | _ -> Fn.id (* TODO *)
 
-let gen_unop uop  =
+let gen_unop (uop : unop) ctx =
   match uop with
-  | Negate -> neg "%eax"
-  | Pos -> id
-  | Complement -> nnot "%eax"
-  | Not -> id
-    >> cmpl "$0" "%eax"
-    >> movl "$0" "%eax"
-    >> sete "%al"
+  | Negate -> neg "%eax" ctx
+  | Pos -> ctx
+  | Complement -> nnot "%eax" ctx
+  | Not ->
+    ctx
+    |> cmpl "$0" "%eax"
+    |> movl "$0" "%eax"
+    |> sete "%al"
 
 let gen_compare (inst : string -> context -> context) ctx =
   ctx
@@ -34,10 +34,10 @@ let gen_binop bop =
   | Add -> addl "%ecx" "%eax"
   | Sub -> subl "%ecx" "%eax"
   | Mult -> imul "%ecx" "%eax"
-  | Div -> id
+  | Div -> Fn.id
     >> movl "$0" "%eax"
     >> idivl "%ecx"
-  | Mod -> id
+  | Mod -> Fn.id
     >> movl "$0" "%edx"
     >> idivl "%ecx"
     >> movl "%edx" "%eax"
@@ -52,11 +52,11 @@ let gen_binop bop =
   | Le -> gen_compare setle
   | Gt -> gen_compare setg
   | Ge -> gen_compare setge
-  | Or -> id
+  | Or -> Fn.id
     >> orl "%ecx" "%eax"
     >> movl "$0" "%eax"
     >> setne "%al"
-  | And -> id
+  | And -> Fn.id
     >> cmpl "$0" "%eax"
     >> movl "$0" "%eax"
     >> setne "%al"
@@ -87,18 +87,62 @@ let assign_op_map = function
 let arg_regs =
   Array.of_list ["%rdi"; "%rsi"; "%rdx"; "%rcx"; "%r8"; "%r9"]
 
+let rec get_type_size = function
+  | VoidType -> 0
+  | IntType -> 4
+  | ShortIntType -> 2
+  | LongIntType -> 4
+  | LongLongIntType -> 8
+  | CharType -> 1
+  | FloatType -> 4
+  | DoubleType -> 8
+  | ArrayType (n, t) -> n * get_type_size t
+  | ConstType t -> get_type_size t
+  | PointerType _ -> 8
+
+let rec get_exp_type ctx = function
+  | Assign (_, lexp, _) -> get_exp_type ctx lexp
+  | Var id -> (find_var id ctx).var_t
+  | Const c -> (* TODO *) LongLongIntType
+  | UnOp (_ , e) -> get_exp_type ctx e
+  | BinOp (_ , e1, e2)
+  | Condition (_, e1, e2) -> get_exp_type ctx e1
+  | Call _ -> LongLongIntType
+  | AddressOf e -> PointerType (get_exp_type ctx e)
+  | Dereference e ->
+    (match get_exp_type ctx e with
+     | PointerType pt -> pt
+     | _ -> (* TODO *) LongLongIntType)
+  | SizeofType _ -> (* TODO *) LongLongIntType
+  | SizeofExp _ -> (* TODO *) LongLongIntType
+
 let rec gen_exp e (ctx : context) =
   match e with
-  | Assign (AssignEq, var, vexp) ->
-    let ctx0 = gen_exp vexp ctx in
-    let i = find_var var ctx0 in
-    movl "%eax" (off i "%rbp") ctx0
-  | Assign (op, var, vexp) ->
-    let bexp = (BinOp (assign_op_map op, Var var, vexp)) in
-    gen_exp (Assign (AssignEq, var, bexp)) ctx
-  | Var var ->
-    let i = find_var var ctx in
-    movl (off i "%rbp") "%eax" ctx
+  | Assign (AssignEq, Var id, rexp) ->
+    let v = find_var id ctx in
+    ctx
+    |> gen_exp rexp
+    |> movq "%rax" (off v.loc "%rbp")
+  | Assign (AssignEq, Dereference pt, rexp) ->
+    let sz = get_type_size (get_exp_type ctx e) in
+    ctx
+    |> gen_exp pt
+    |> pushq "%rax"
+    |> gen_exp rexp
+    |> movq "%rax" "%rcx"
+    |> popq "%rax"
+    |> if sz <= 4
+    then movl "%ecx" "(%rax)"
+    else movq "%rcx" "(%rax)"
+  | Assign (AssignEq, _, rexp) ->
+    raise (CodeGenError
+             "the left hand side of an assignment should be a variable or a dereference")
+  | Assign (op, lexp, rexp) ->
+    let bexp = (BinOp (assign_op_map op, lexp, rexp)) in
+    gen_exp (Assign (AssignEq, lexp, bexp)) ctx
+  | Var id ->
+    let v =  find_var id ctx in
+    movq (off v.loc "%rbp") "%rax" ctx
   | Const c ->
     gen_const c ctx
   | UnOp (uop, e) ->
@@ -110,7 +154,7 @@ let rec gen_exp e (ctx : context) =
     |> gen_exp e1
     |> pushq "%rax"
     |> gen_exp e2
-    |> movl "%eax" "%ecx"
+    |> movq "%rax" "%rcx"
     |> popq "%rax"
     |> gen_binop bop
   | Condition (cond, texp, fexp) ->
@@ -126,6 +170,27 @@ let rec gen_exp e (ctx : context) =
     |> label lb0
     |> gen_exp fexp
     |> label lb1
+  | AddressOf (Var id) ->
+    let v = find_var id ctx in
+    ctx
+    |> movq "%rbp" "%rax"
+    |> addq (cint v.loc) "%rax"
+  | AddressOf _ ->
+    raise (CodeGenError
+             "cannot get the address of an expression which is not a variable")
+  | Dereference e ->
+    let sz = get_type_size (get_exp_type ctx e) in
+    gen_exp e ctx |>
+    if sz <= 4
+    then movl "(%rax)" "%eax"
+    else movq "(%rax)" "%rax"
+  | SizeofType t ->
+    let sz = get_type_size t in
+    movq (cint sz) "%rax" ctx
+  | SizeofExp e ->
+    (* TODO *)
+    let sz = get_type_size (get_exp_type ctx e) in
+    movq (cint sz) "%rax" ctx
   | Call (f, args) -> (* TODO *)
     gen_args 0 args ctx
     |> call f
@@ -139,14 +204,14 @@ and gen_args i args =
       gen_exp arg
       >> movq "%rax" arg_regs.(i)
       >> gen_args (i + 1) args
-  | [] -> id
+  | [] -> Fn.id
 
 let gen_decl_exp (de : decl_exp) ctx =
   (* TODO *)
   (* check if var has been define in the same block *)
   (match get_var_level de.name ctx with
    | Some l ->
-     if l = ctx.block_level
+     if l = ctx.scope_levelc
      then raise (CodeGenError
                    (de.name ^ " has already been defined in the same block"))
      else ()
@@ -156,9 +221,9 @@ let gen_decl_exp (de : decl_exp) ctx =
      gen_exp iexp ctx
    | None ->
      (* init default value *)
-     movl "$0" "%eax" ctx)
+     movq "$0" "%rax" ctx)
   |> pushq "%rax"
-  |> add_var de.name
+  |> add_var de.name de.var_type
 
 let deallocate_vars ctx1 ctx2 =
   ignore @@ addq (cint (ctx1.index - ctx2.index)) "%rsp" ctx2;
@@ -210,7 +275,7 @@ let rec gen_statement sta ctx =
     |> label lb0
     |> (match ifs.fstat with
         | Some fs -> gen_statement fs
-        | None -> id)
+        | None -> Fn.id)
     |> label lb1
   | While (cond, body) ->
     let lb0 = get_new_label ~name:"WHA" ctx in
@@ -289,24 +354,24 @@ and gen_statements stas =
   | s :: ss ->
     gen_statement s >>
     gen_statements ss
-  | [] -> id
+  | [] -> Fn.id
 
 let rec init_params i params ctx =
   match params with
   | (_, VoidType) :: _ -> ctx
   | (None, _) :: ps -> init_params (i + 1) ps ctx
-  | (Some v, _) :: ps ->
+  | (Some v, t) :: ps ->
     ctx
     (* |> movq arg_regs.(i) "%rax" *)
     |> pushq arg_regs.(i)
-    |> add_var v
+    |> add_var v t
     |> init_params (i + 1) ps
   | _ -> ctx
 
 let gen_fun (f : fun_decl) out =
   (* TODO *)
   { fun_name = f.name ; index= -8;
-    block_level = 0; labelc = 0;
+    scope_levelc = 0; labelc = 0;
     startlb = [];  endlb = [];
     vars = []; out = out }
   |> globl f.name
@@ -316,12 +381,12 @@ let gen_fun (f : fun_decl) out =
   |> init_params 0 f.params
   |> gen_statements f.body
 
-let gen_temp_println out =
+let gen_temp_lib out =
   { fun_name = "println" ; index= -8;
-    block_level = 0; labelc = 0;
+    scope_levelc = 0; labelc = 0;
     startlb = [];  endlb = [];
     vars = []; out = out; }
-  |> Print.gen_print
+  |> Templib.gen_lib
 
 let rec gen_prog p out =
   match p with

@@ -6,10 +6,10 @@
 %token <int> INT
 %token <char> CHAR
 %token <string> ID
-%token BRACE_OPEN BRACE_CLOSE PAREN_OPEN PAREN_CLOSE
+%token BRACE_OPEN BRACE_CLOSE PAREN_OPEN PAREN_CLOSE BRACKET_OPEN BRACKET_CLOSE
 %token COMMA QUESTION SEMICOLON COLON
 %token VOID_KW INT_KW CHAR_KW LONG_KW UNSIGNED_KW FLOAT_KW DOUBLE_KW
-%token STRUCT_KW CONST_KW STATIC_KW RETURN_KW GOTO_KW
+%token STRUCT_KW CONST_KW STATIC_KW SIZEOF_KW RETURN_KW GOTO_KW
 %token IF_KW ELSE_KW SWITCH_KW FOR_KW DO_KW WHILE_KW BREAK_KW CONTINUE_KW
 %token BANG COMPLEMENT
 %token PLUS MINUS NEG_MINUS MULT DIV MOD
@@ -17,6 +17,7 @@
 %token BIT_AND_EQ BIT_OR_EQ XOR_EQ SHIFT_LEFT_EQ SHIFT_RIGHT_EQ
 %token EQ DOUBLE_EQ NEQ LT LE GT GE AND OR
 %token BIT_AND BIT_OR XOR SHIFT_LEFT SHIFT_RIGHT
+%token ARROW ADDROF DEREF
 %token EOF
 
 %left COMMA
@@ -32,7 +33,7 @@
 %left SHIFT_LEFT SHIFT_RIGHT
 %left PLUS MINUS
 %left MULT DIV MOD
-%nonassoc NEG_MINUS
+%nonassoc NEG_MINUS ADDROF DEREF
 
 %type <Ast.prog> program
 %type <fun_decl> fun_decl
@@ -48,6 +49,8 @@ type_def:
   | CHAR_KW { CharType }
   | FLOAT_KW { FloatType }
   | DOUBLE_KW { DoubleType }
+  | t = type_def MULT
+    { PointerType t }
 
 program:
   | f = fun_decl p = program
@@ -94,7 +97,7 @@ statement:
   | RETURN_KW e = exp SEMICOLON
     { ReturnVal e }
   | e = exp SEMICOLON
-    { Exp e}
+    { Exp e }
   | IF_KW PAREN_OPEN cond = exp PAREN_CLOSE
     tstat = statement fstat = if_fstat
     { If { cond; tstat; fstat; } }
@@ -127,8 +130,8 @@ statement:
 ;
 
 decl_exp:
-  INT_KW id = ID e = decl_exp_init
-  { { var_type = IntType; name = id; init = e } }
+  var_type = type_def id = ID e = decl_exp_init
+  { { var_type; name = id; init = e } }
 
 decl_exp_init:
   | { None }
@@ -151,14 +154,22 @@ exp:
     { UnOp (Not, e) }
   | MINUS e = exp %prec NEG_MINUS
     { UnOp (Negate, e) }
-  | id = ID aop = assign_op e = exp
-    { Assign (aop, id, e) }
+  | MULT e = exp %prec DEREF
+    { Dereference e }
+  | BIT_AND e = exp %prec ADDROF
+    { AddressOf e }
+  | lexp = exp aop = assign_op rexp = exp
+    { Assign (aop, lexp, rexp) }
   | id = ID
     { Var id }
   | cond = exp QUESTION texp = exp COLON fexp = exp
     { Condition (cond, texp, fexp) }
   | id = ID PAREN_OPEN args = args PAREN_CLOSE
     { Call (id, args) }
+  | SIZEOF_KW PAREN_OPEN t = type_def PAREN_CLOSE
+    { SizeofType t }
+  | SIZEOF_KW PAREN_OPEN e = exp PAREN_CLOSE
+    { SizeofExp e }
 ;
 
 %inline binop:

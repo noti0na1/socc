@@ -26,6 +26,8 @@ let globl f =
 let label f =
   f ^ ":\n" |> my_print_string
 
+let movb = bicmd "movb"
+
 let movl = bicmd "movl"
 
 let movq = bicmd "movq"
@@ -46,6 +48,8 @@ let popl = slcmd "popl"
 
 let popq = slcmd "popq"
 
+let leaq = bicmd "leaq"
+
 let sete = slcmd "sete"
 
 let setne = slcmd "setne"
@@ -60,6 +64,8 @@ let setge = slcmd "setge"
 
 let cmpl = bicmd "cmpl"
 
+(* inc dec *)
+
 let addl = bicmd "addl"
 
 let addq = bicmd "addq"
@@ -70,7 +76,15 @@ let subq = bicmd "subq"
 
 let imul = bicmd "imul"
 
+let imulq = bicmd "imulq"
+
+let mulq = bicmd "mulq"
+
 let idivl = slcmd "idivl"
+
+let idivq = slcmd "idivq"
+
+let divq = slcmd "divq"
 
 let ands = bicmd "and"
 
