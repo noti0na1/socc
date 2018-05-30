@@ -259,7 +259,7 @@ let rec gen_statement sta ctx =
     |> gen_fun_end
   | Compound ss ->
     ctx
-    |> inc_block_level
+    |> inc_scope_level
     |> gen_statements ss
     |> deallocate_vars ctx
   | If ifs ->
@@ -327,7 +327,7 @@ and gen_for gen_init cond post body ctx =
   let lb1 = get_new_label ~name:"FORB" ctx in
   let lb2 = get_new_label ~name:"FORC" ctx in
   ctx
-  |> inc_block_level
+  |> inc_scope_level
   |> inc_labelc
   |> set_labels lb0 lb2
   |> gen_init

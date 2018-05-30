@@ -42,7 +42,7 @@ let get_var_level id ctx =
   | Some v -> Some v.scope_level
   | None -> None
 
-let add_block_level l ctx=
+let add_scope_level l ctx=
   { fun_name = ctx.fun_name;
     index = ctx.index;
     scope_levelc = ctx.scope_levelc + l;
@@ -52,7 +52,7 @@ let add_block_level l ctx=
     vars = ctx.vars;
     out = ctx.out }
 
-let inc_block_level = add_block_level 1
+let inc_scope_level = add_scope_level 1
 
 let get_new_label ?name ctx =
   match name with

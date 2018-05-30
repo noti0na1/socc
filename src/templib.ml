@@ -23,7 +23,7 @@ let gen_readi ctx =
   |> movq "$0" "%rax"
   |> leaq "12(%rsp)" "%rsi"
   |> movl "$0" "12(%rsp)"
-  |> call "__isoc99_scanf"
+  |> call "scanf"
   |> movl "12(%rsp)" "%eax"
   |> addq "$24" "%rsp"
   |> ret
