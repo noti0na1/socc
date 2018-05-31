@@ -186,6 +186,7 @@ The output assembly is for x64 platform
 
 ### Short Term
 
+- [ ] follow the C11 to edit lexer
 - [ ] add array type and array operate
 - [ ] implement `++` and `--`
 - [ ] support comments
