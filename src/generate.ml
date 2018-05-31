@@ -89,9 +89,9 @@ let arg_regs =
 
 let rec get_type_size = function
   | VoidType -> 0
-  | IntType -> 4
   | ShortIntType -> 2
-  | LongIntType -> 4
+  | IntType -> 4
+  | LongIntType -> 8
   | LongLongIntType -> 8
   | CharType -> 1
   | FloatType -> 4

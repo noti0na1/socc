@@ -44,22 +44,17 @@ There are 4 buildin functions for test:
 * `void free(void *)`
 
 ```c
-int factorial(int n) {
-    if (n < 0) return 0;
-    int c = 1;
-    for (int i = 1; i <= n; i += 1) {
-        println(i);
-        c *= i;
-    }
-    return c;
-}
-
 int main() {
-    int i = factorial(10);
-    println(i);
+    int *pi = malloc(sizeof(int));
+    int max = readi();
+    for (int i = 0; i < max; i += 2) {
+        println(i);
+        *pi += i;
+    }
+    println(*pi);
+    free(pi);
     return 0;
 }
-
 ```
 
 ```assembly
@@ -194,7 +189,7 @@ The output assembly is for x64 platform
 - [ ] add array type and array operate
 - [ ] implement `++` and `--`
 - [ ] support comments
-- [ ] add more type, implement struct
+- [ ] add more type, implement struct, union, enum
 - [ ] complete type system
 - [ ] optimize stack usage
 - [ ] improve parser further more
