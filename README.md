@@ -1,20 +1,15 @@
-# OCC
+# SOCC - Simple C Compiler in OCaml
 
-C Compiler in OCaml using ocamllex and menhir
-
-[Writing a C Compiler](https://norasandler.com/2017/11/29/Write-a-Compiler.html)
-
-[Parsing with OCamllex and Menhir](https://dev.realworldocaml.org/parsing-with-ocamllex-and-menhir.html)
-
-[Lexer and parser generators (ocamllex, ocamlyacc)](https://caml.inria.fr/pub/docs/manual-ocaml/lexyacc.html)
-
-[The OCamlbuild Manual](https://github.com/ocaml/ocamlbuild/blob/master/manual/manual.adoc)
-
-[x64_cheatsheet]()
+SOCC is a simple C Compiler written in OCaml using ocamllex and menhir.
 
 ## Install
 
 Dependences: `core, ppx_jane`
+
+```bash
+opam update
+opam install core ppx_jane
+```
 
 ```bash
 git clone git@github.com:noti0na1/occ.git
@@ -164,7 +159,7 @@ Out:
 
 ## Structure
 
-- `occ/src` source code
+- `socc/src` source code
     - `ast.ml` abstract syntax tree
     - `parser.mly` parser
     - `lexer.mll` lexer
@@ -174,13 +169,13 @@ Out:
     - `generate.ml` code generator
 	- `util.ml` utils
     - `main.ml` program entry
-- `occ/test` some test files
+- `socc/test` some test files
 
 ## Note
 
 `Core` is used across the project
 
-The output assembly is for x64 platform
+The output assembly is for x64 Linux platform
 
 ## TODO
 
@@ -201,8 +196,18 @@ The output assembly is for x64 platform
 - [ ] add semantic check pass
 - [ ] add intermediate lang
 
+## References
+
+[Writing a C Compiler](https://norasandler.com/2017/11/29/Write-a-Compiler.html)
+
+[Parsing with OCamllex and Menhir](https://dev.realworldocaml.org/parsing-with-ocamllex-and-menhir.html)
+
+[Lexer and parser generators (ocamllex, ocamlyacc)](https://caml.inria.fr/pub/docs/manual-ocaml/lexyacc.html)
+
+[x64_cheatsheet](https://cs.brown.edu/courses/cs033/docs/guides/x64_cheatsheet.pdf)
+
 ## Licence
 
-OCC is distributed under the terms of [MIT License](LICENSE)
+SOCC is distributed under the terms of [MIT License](LICENSE)
 
 Copyright (c) 2018 noti0na1

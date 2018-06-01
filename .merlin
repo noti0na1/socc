@@ -1,0 +1,5 @@
+S src/**
+
+B _build/**
+
+PKG base core_kernal core
