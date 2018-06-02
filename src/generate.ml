@@ -229,24 +229,6 @@ let deallocate_vars ctx1 ctx2 =
   ignore @@ addq (cint (ctx1.index - ctx2.index)) "%rsp" ctx2;
   keep_labelc ctx1 ctx2
 
-(* let rec replace_statement lb0 lb1 s =
-   match s with
-   | Decl _ | Exp _ | ReturnVal _
-   | While _ | Do _ | For _
-   | Label _ | Goto _ -> s
-   | Break -> Goto lb1
-   | Continue -> Goto lb0
-   | If ifs ->
-    let tstat = replace_statement lb0 lb1 ifs.tstat in
-    let fstat =
-      (match ifs.fstat with
-       | Some fs -> Some (replace_statement lb0 lb1 fs)
-       | None -> None) in
-    If { cond = ifs.cond; tstat; fstat }
-   | Compound ss -> replace_statements lb0 lb1 ss
-   and replace_statements lb0 lb1 ss =
-   Compound (List.map ss ~f:(replace_statement lb0 lb1)) *)
-
 let rec gen_statement sta ctx =
   match sta with
   | Decl de ->

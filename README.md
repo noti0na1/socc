@@ -12,8 +12,8 @@ opam install core ppx_jane
 ```
 
 ```bash
-git clone git@github.com:noti0na1/occ.git
-cd occ
+git clone git@github.com:noti0na1/socc.git
+cd socc
 make
 ```
 
@@ -199,6 +199,8 @@ The output assembly is for x64 Linux platform
 ## References
 
 [Writing a C Compiler](https://norasandler.com/2017/11/29/Write-a-Compiler.html)
+
+[nlsandler/nqcc](https://github.com/nlsandler/nqcc)
 
 [Parsing with OCamllex and Menhir](https://dev.realworldocaml.org/parsing-with-ocamllex-and-menhir.html)
 
